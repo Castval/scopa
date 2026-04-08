@@ -2,8 +2,15 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scopa Maresciallo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a472a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Scopa">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <title>Scopa</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -158,6 +165,7 @@
           </select>
         </div>
         <button id="btnCreaStanza" class="btn-primario">Crea Stanza</button>
+        <button id="btnCreaVsBot" class="btn-secondario">🤖 Gioca contro la CPU</button>
         <div class="divisore">oppure</div>
         <button id="btnMostraStanze" class="btn-primario">Stanze disponibili</button>
         <div class="form-gruppo">
@@ -341,6 +349,28 @@
       </div>
 
       <div id="messaggioGioco" class="messaggio"></div>
+
+      <!-- Reazioni emoji + chat in partita -->
+      <div class="game-social">
+        <div class="reazioni-bar">
+          <button class="reazione-btn" data-emoji="👍">👍</button>
+          <button class="reazione-btn" data-emoji="😂">😂</button>
+          <button class="reazione-btn" data-emoji="🤔">🤔</button>
+          <button class="reazione-btn" data-emoji="🔥">🔥</button>
+          <button class="reazione-btn" data-emoji="👏">👏</button>
+          <button class="reazione-btn" data-emoji="😱">😱</button>
+        </div>
+        <div class="chat-partita">
+          <div id="chatPartitaMessaggi" class="chat-partita-msgs"></div>
+          <div class="chat-partita-row">
+            <input type="text" id="chatPartitaInput" placeholder="Scrivi..." maxlength="100">
+            <button id="btnChatPartitaInvia" class="btn-piccolo btn-primario">Invia</button>
+            <button id="btnMute" class="btn-piccolo btn-secondario" title="Audio">🔊</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="reazioneOverlay" class="reazione-overlay nascosto"><span id="reazioneEmoji"></span></div>
     </div>
 
     <!-- Schermata Fine Round -->

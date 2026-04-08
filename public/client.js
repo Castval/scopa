@@ -1,4 +1,116 @@
-// Client Scopa Maresciallo
+// Client Scopa
+
+// Registra service worker (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+// === SUONI (WebAudio, no file esterni) ===
+let audioCtx = null;
+let audioMuted = localStorage.getItem('scopaMuted') === '1';
+function getAudio() {
+  if (!audioCtx) {
+    try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch {}
+  }
+  return audioCtx;
+}
+function playTone(freq, dur = 0.1, type = 'sine', vol = 0.15) {
+  if (audioMuted) return;
+  const ctx = getAudio();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  g.gain.setValueAtTime(vol, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+  o.connect(g).connect(ctx.destination);
+  o.start();
+  o.stop(ctx.currentTime + dur);
+}
+const sounds = {
+  carta: () => playTone(440, 0.08, 'square', 0.1),
+  presa: () => { playTone(660, 0.08, 'sine', 0.12); setTimeout(() => playTone(880, 0.1, 'sine', 0.12), 60); },
+  scopa: () => { playTone(523, 0.1, 'triangle', 0.15); setTimeout(() => playTone(659, 0.1, 'triangle', 0.15), 80); setTimeout(() => playTone(784, 0.18, 'triangle', 0.15), 160); },
+  turno: () => playTone(800, 0.15, 'sine', 0.13),
+  vittoria: () => { [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => playTone(f, 0.18, 'triangle', 0.15), i * 150)); },
+  sconfitta: () => { [400, 350, 300, 250].forEach((f, i) => setTimeout(() => playTone(f, 0.25, 'sawtooth', 0.12), i * 180)); },
+  reazione: () => playTone(550, 0.05, 'sine', 0.08)
+};
+function aggiornaBtnMute() {
+  const b = document.getElementById('btnMute');
+  if (b) b.textContent = audioMuted ? '🔇' : '🔊';
+}
+document.addEventListener('click', () => { if (!audioCtx) getAudio(); }, { once: true });
+
+// Setup mute toggle, reazioni, chat in partita (al DOMContentLoaded)
+document.addEventListener('DOMContentLoaded', () => {
+  aggiornaBtnMute();
+  document.getElementById('btnMute')?.addEventListener('click', () => {
+    audioMuted = !audioMuted;
+    localStorage.setItem('scopaMuted', audioMuted ? '1' : '0');
+    aggiornaBtnMute();
+    if (!audioMuted) sounds.turno();
+  });
+  document.querySelectorAll('.reazione-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const emoji = b.dataset.emoji;
+      socket.emit('reazione', { emoji });
+      mostraReazione(emoji);
+      sounds.reazione();
+    });
+  });
+  const chatInput = document.getElementById('chatPartitaInput');
+  const chatBtn = document.getElementById('btnChatPartitaInvia');
+  function inviaChatPartita() {
+    const t = chatInput.value.trim();
+    if (!t) return;
+    socket.emit('chatPartita', { testo: t });
+    chatInput.value = '';
+  }
+  chatBtn?.addEventListener('click', inviaChatPartita);
+  chatInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') inviaChatPartita(); });
+});
+
+function mostraReazione(emoji) {
+  const ov = document.getElementById('reazioneOverlay');
+  const sp = document.getElementById('reazioneEmoji');
+  if (!ov || !sp) return;
+  sp.textContent = emoji;
+  ov.classList.remove('nascosto');
+  // forza restart animazione
+  sp.style.animation = 'none';
+  void sp.offsetWidth;
+  sp.style.animation = '';
+  setTimeout(() => ov.classList.add('nascosto'), 1700);
+}
+
+socket.on('reazione', ({ nome, emoji }) => {
+  if (nome === getNomeUtente()) return; // gia' mostrata localmente
+  mostraReazione(emoji);
+  sounds.reazione();
+});
+
+socket.on('chatPartita', ({ nome, testo }) => {
+  const cont = document.getElementById('chatPartitaMessaggi');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.className = 'msg';
+  const sNome = document.createElement('span');
+  sNome.className = 'nome';
+  sNome.textContent = nome + ':';
+  const sTesto = document.createElement('span');
+  sTesto.textContent = ' ' + testo;
+  div.appendChild(sNome);
+  div.appendChild(sTesto);
+  cont.appendChild(div);
+  cont.scrollTop = cont.scrollHeight;
+  if (nome !== getNomeUtente()) sounds.reazione();
+});
 
 const socket = io();
 
@@ -518,6 +630,19 @@ document.getElementById('btnCreaStanza').addEventListener('click', () => {
   socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto });
 });
 
+document.getElementById('btnCreaVsBot')?.addEventListener('click', () => {
+  const nome = getNomeUtente();
+  if (!nome) { mostraMessaggio('Devi essere loggato', 'errore'); return; }
+  const tipoGioco = document.querySelector('input[name="tipoGioco"]:checked').value;
+  const due = (tipoGioco === 'scientifico' || tipoGioco === 'classica');
+  const puntiVittoria = parseInt(document.getElementById('puntiVittoria').value);
+  const assoPigliaTutto = due && document.getElementById('optAssoPigliaTutto')?.checked;
+  numGiocatoriAttesa = 2;
+  tipoGiocoCorrente = tipoGioco;
+  setSessione({ nome, tipoGioco });
+  socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori: 2, tipoGioco, assoPigliaTutto, vsBot: true });
+});
+
 // Stato tipo gioco corrente (impostato dal server in stanzaCreata/unitoAStanza)
 let tipoGiocoCorrente = 'maresciallo';
 
@@ -689,6 +814,8 @@ socket.on('partitaIniziata', (stato) => {
   statoGioco = stato;
   mostraSchermata('gioco');
   renderizzaGioco();
+  const cont = document.getElementById('chatPartitaMessaggi');
+  if (cont) cont.innerHTML = '';
 });
 
 // Timer turno (180s, gestito dal server)
@@ -721,10 +848,17 @@ socket.on('turnoTimer', ({ giocatoreId, scadenza }) => {
 socket.on('statoAggiornato', (dati) => {
   const { cartaGiocata, giocatoreId, ...stato } = dati;
   const eraTurnoMio = statoGioco?.turnoMio;
+  const presaPrese = stato.preseGiocatore + stato.preseAvversario > (statoGioco?.preseGiocatore || 0) + (statoGioco?.preseAvversario || 0);
   const onUpdate = () => {
     statoGioco = stato; renderizzaGioco();
-    if (stato.turnoMio && !eraTurnoMio && document.hidden && Notification.permission === 'granted') {
-      try { const n = new Notification('Scopa Maresciallo', { body: 'È il tuo turno!', tag: 'scopa-turno', renotify: true }); n.onclick = () => { window.focus(); n.close(); }; } catch (e) {}
+    if (cartaGiocata) {
+      if (presaPrese) sounds.presa(); else sounds.carta();
+    }
+    if (stato.turnoMio && !eraTurnoMio) {
+      sounds.turno();
+      if (document.hidden && Notification.permission === 'granted') {
+        try { const n = new Notification('Scopa', { body: 'È il tuo turno!', tag: 'scopa-turno', renotify: true }); n.onclick = () => { window.focus(); n.close(); }; } catch (e) {}
+      }
     }
   };
   if (cartaGiocata && giocatoreId !== socket.id) mostraCartaAvversario(cartaGiocata, onUpdate);
@@ -818,6 +952,12 @@ socket.on('mossaNonValida', (errore) => {
 socket.on('fineRound', ({ stato, puntiRound, dettagliGiocatore, dettagliAvversario, finePartita, vincitore, pareggio }) => {
   statoGioco = stato;
   fermaTurnoTimer();
+  if (finePartita) {
+    const haVinto = vincitore && vincitore.includes(stato.nomeGiocatore);
+    if (haVinto) sounds.vittoria(); else sounds.sconfitta();
+  } else {
+    sounds.scopa();
+  }
 
   const titoloEl = document.getElementById('titoloFineRound');
   const btnProssimo = document.getElementById('btnProssimoRound');
