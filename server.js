@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const os = require('os');
 const { ScopaMaresciallo } = require('./games/maresciallo');
 const { ScoponeScientifico } = require('./games/scientifico');
 const { ScopaClassica } = require('./games/classica');
@@ -41,6 +42,61 @@ app.get('/api/stats/:nome', (req, res) => {
 });
 app.get('/api/classifica', (req, res) => {
   res.json({ ok: true, classifica: db.getClassifica() });
+});
+
+// Health check (pubblico, leggero — usabile da uptime monitor o pm2)
+const startedAt = Date.now();
+app.get('/health', (req, res) => {
+  res.json({
+    ok: true,
+    uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
+    utentiOnline: io.sockets.sockets.size,
+    stanzeAttive: stanze.size,
+    timestamp: Date.now()
+  });
+});
+
+// Metriche dettagliate (riservate admin)
+app.get('/api/admin/metriche', (req, res) => {
+  const nome = req.query.nome;
+  if (!nome || !db.isAdmin(nome)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+  const mem = process.memoryUsage();
+  const load = os.loadavg();
+  let stanzeInCorso = 0, stanzeAttesa = 0, stanzeFinite = 0;
+  for (const [, p] of stanze) {
+    if (p.stato === 'inCorso' || p.stato === 'fineRound') stanzeInCorso++;
+    else if (p.stato === 'attesa') stanzeAttesa++;
+    else if (p.stato === 'finePartita') stanzeFinite++;
+  }
+  res.json({
+    ok: true,
+    metriche: {
+      uptimeSec: Math.floor((Date.now() - startedAt) / 1000),
+      uptimeProcesso: Math.floor(process.uptime()),
+      utentiOnline: io.sockets.sockets.size,
+      stanzeTotali: stanze.size,
+      stanzeInCorso,
+      stanzeAttesa,
+      stanzeFinite,
+      timerTurniAttivi: timerTurni.size,
+      memoria: {
+        rss_mb: Math.round(mem.rss / 1024 / 1024),
+        heap_used_mb: Math.round(mem.heapUsed / 1024 / 1024),
+        heap_total_mb: Math.round(mem.heapTotal / 1024 / 1024),
+        external_mb: Math.round(mem.external / 1024 / 1024)
+      },
+      sistema: {
+        loadavg_1m: load[0].toFixed(2),
+        loadavg_5m: load[1].toFixed(2),
+        loadavg_15m: load[2].toFixed(2),
+        cpu_count: os.cpus().length,
+        ram_libera_mb: Math.round(os.freemem() / 1024 / 1024),
+        ram_totale_mb: Math.round(os.totalmem() / 1024 / 1024)
+      },
+      node: process.version,
+      pid: process.pid
+    }
+  });
 });
 app.get('/api/isadmin/:nome', (req, res) => {
   res.json({ ok: true, admin: db.isAdmin(req.params.nome) });

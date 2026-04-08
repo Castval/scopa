@@ -998,6 +998,12 @@ body {
 .pannello-admin { max-width: 600px; margin: 0 auto 20px; padding: 20px; background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; text-align: left; }
 .pannello-admin h3 { color: #bb86fc; text-align: center; margin-bottom: 15px; }
 .btn-refresh-admin { display: block; margin: 0 auto 15px; padding: 6px 16px; font-size: 0.85em; }
+.admin-metriche { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 0.85em; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; }
+.admin-metriche .metrica-label { color: #8bc48b; }
+.admin-metriche .metrica-val { color: #d4af37; font-weight: bold; text-align: right; font-variant-numeric: tabular-nums; }
+.admin-metriche .metrica-val.warning { color: #ffc107; }
+.admin-metriche .metrica-val.danger { color: #ef5350; }
+.admin-metriche .metrica-sez { grid-column: 1/-1; color: #bb86fc; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; border-bottom: 1px solid rgba(187,134,252,0.3); padding-bottom: 2px; }
 .admin-sezione { margin-bottom: 15px; }
 .admin-sezione h4 { color: #bb86fc; margin-bottom: 8px; font-size: 0.95em; }
 .admin-lista { font-size: 0.9em; }

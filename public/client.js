@@ -1082,6 +1082,46 @@ async function caricaDatiAdmin() {
     if (d.ok && d.torneo) el.innerHTML = `<div class="admin-torneo-info">Attivo: <strong>${d.torneo.nome}</strong> (${d.torneo.stato})</div><button class="btn-reset-pwd" onclick="annullaTorneoFn(${d.torneo.id})">Annulla</button>`;
     else el.innerHTML = '<div class="admin-torneo-info">Nessun torneo</div>';
   } catch {}
+  caricaMetricheAdmin();
+}
+
+function fmtUptime(sec) {
+  const d = Math.floor(sec/86400), h = Math.floor((sec%86400)/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  if (d) return `${d}g ${h}h ${m}m`;
+  if (h) return `${h}h ${m}m ${s}s`;
+  if (m) return `${m}m ${s}s`;
+  return `${s}s`;
+}
+async function caricaMetricheAdmin() {
+  const el = document.getElementById('adminMetriche');
+  if (!el) return;
+  try {
+    const d = await (await fetch(`/api/admin/metriche?nome=${encodeURIComponent(getNomeUtente())}`)).json();
+    if (!d.ok) { el.textContent = 'Errore'; return; }
+    const m = d.metriche;
+    const memCls = m.memoria.rss_mb > 350 ? 'danger' : (m.memoria.rss_mb > 250 ? 'warning' : '');
+    const loadCls = parseFloat(m.sistema.loadavg_1m) > m.sistema.cpu_count ? 'danger' : (parseFloat(m.sistema.loadavg_1m) > m.sistema.cpu_count*0.7 ? 'warning' : '');
+    el.innerHTML = `
+      <div class="metrica-sez">Server</div>
+      <span class="metrica-label">Uptime processo</span><span class="metrica-val">${fmtUptime(m.uptimeProcesso)}</span>
+      <span class="metrica-label">Node</span><span class="metrica-val">${m.node}</span>
+      <span class="metrica-label">PID</span><span class="metrica-val">${m.pid}</span>
+      <div class="metrica-sez">Gioco</div>
+      <span class="metrica-label">Utenti online</span><span class="metrica-val">${m.utentiOnline}</span>
+      <span class="metrica-label">Stanze totali</span><span class="metrica-val">${m.stanzeTotali}</span>
+      <span class="metrica-label">In corso</span><span class="metrica-val">${m.stanzeInCorso}</span>
+      <span class="metrica-label">In attesa</span><span class="metrica-val">${m.stanzeAttesa}</span>
+      <span class="metrica-label">Finite</span><span class="metrica-val">${m.stanzeFinite}</span>
+      <span class="metrica-label">Timer turni attivi</span><span class="metrica-val">${m.timerTurniAttivi}</span>
+      <div class="metrica-sez">Memoria processo</div>
+      <span class="metrica-label">RSS</span><span class="metrica-val ${memCls}">${m.memoria.rss_mb} MB</span>
+      <span class="metrica-label">Heap usato</span><span class="metrica-val">${m.memoria.heap_used_mb} / ${m.memoria.heap_total_mb} MB</span>
+      <div class="metrica-sez">Sistema</div>
+      <span class="metrica-label">Load avg (1m/5m/15m)</span><span class="metrica-val ${loadCls}">${m.sistema.loadavg_1m} / ${m.sistema.loadavg_5m} / ${m.sistema.loadavg_15m}</span>
+      <span class="metrica-label">CPU</span><span class="metrica-val">${m.sistema.cpu_count} core</span>
+      <span class="metrica-label">RAM</span><span class="metrica-val">${m.sistema.ram_totale_mb - m.sistema.ram_libera_mb} / ${m.sistema.ram_totale_mb} MB</span>
+    `;
+  } catch (e) { el.textContent = 'Errore caricamento metriche'; }
 }
 document.getElementById('btnCreaTorneo')?.addEventListener('click', async () => {
   const nome = document.getElementById('adminTorneoNome').value.trim(); if (!nome) { alert('Nome torneo'); return; }
