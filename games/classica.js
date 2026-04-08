@@ -83,8 +83,8 @@ class Giocatore {
   }
 }
 
-class ScoponeScientifico {
-  constructor(roomId, puntiVittoria = 21, opzioni = {}) {
+class ScopaClassica {
+  constructor(roomId, puntiVittoria = 11, opzioni = {}) {
     this.roomId = roomId;
     this.mazzo = new Mazzo();
     this.giocatori = [];
@@ -143,17 +143,17 @@ class ScoponeScientifico {
       g.reset();
     }
 
-    // Nessuna carta al tavolo
-    // 10 carte a testa
-    for (const g of this.giocatori) {
-      g.mano = this.mazzo.pesca(10);
-    }
+    // 4 carte iniziali sul tavolo
+    this.tavolo = this.mazzo.pesca(4);
+    // Distribuisci 3 carte a testa
+    this.distribuisciMano();
+  }
 
-    // Il primo giocatore pesca 1 carta prima di giocare
-    const primo = this.giocatori[this.turnoCorrente];
-    const pescata = this.mazzo.pesca(1);
-    if (pescata.length > 0) {
-      primo.mano.push(...pescata);
+  // Distribuisce 3 carte a ciascun giocatore (per ogni "manche")
+  distribuisciMano() {
+    for (const g of this.giocatori) {
+      const carte = this.mazzo.pesca(3);
+      g.mano.push(...carte);
     }
   }
 
@@ -167,6 +167,12 @@ class ScoponeScientifico {
 
     // Asso piglia tutto (opzionale)
     if (this.assoPigliaTutto && carta.valore === 1 && tavolo.length > 0) {
+      // Se c'e' un asso sul tavolo, l'asso prende solo l'asso (non tutte le carte)
+      const assoSulTavolo = tavolo.find(c => c.valore === 1);
+      if (assoSulTavolo) {
+        combinazioni.push([assoSulTavolo]);
+        return combinazioni;
+      }
       combinazioni.push([...tavolo]);
       return combinazioni;
     }
@@ -232,10 +238,18 @@ class ScoponeScientifico {
       return { valida: false, errore: 'Carte da prendere non valide' };
     }
 
-    // Asso piglia tutto (opzionale): l'asso prende tutte le carte sul tavolo
+    // Asso piglia tutto (opzionale): l'asso prende tutte le carte sul tavolo,
+    // ma se c'e' un asso a terra prende solo quell'asso
     if (this.assoPigliaTutto && carta.valore === 1) {
       if (this.tavolo.length === 0) {
         return { valida: true, tipo: 'presa', scopa: false, assoSolo: true };
+      }
+      const assoSulTavolo = this.tavolo.find(c => c.valore === 1);
+      if (assoSulTavolo) {
+        if (cartePresa.length !== 1 || cartePresa[0].id !== assoSulTavolo.id) {
+          return { valida: false, errore: 'Devi prendere solo l\'asso a terra' };
+        }
+        return { valida: true, tipo: 'presa', scopa: false };
       }
       if (cartePresa.length !== this.tavolo.length) {
         return { valida: false, errore: 'L\'asso deve prendere tutte le carte' };
@@ -309,18 +323,16 @@ class ScoponeScientifico {
     // Prossimo turno
     this.turnoCorrente = (this.turnoCorrente + 1) % 2;
 
-    // Controlla se le mani sono vuote e il mazzo e' finito
+    // Controlla se entrambe le mani sono vuote
     const maniVuote = this.giocatori.every(g => g.mano.length === 0);
 
-    if (maniVuote && this.mazzo.rimanenti() === 0) {
-      // Fine round - carte rimanenti all'ultimo che ha preso
-      this.fineRound();
-    } else if (this.mazzo.rimanenti() > 0) {
-      // Il prossimo giocatore pesca 1 carta dal mazzo
-      const prossimo = this.giocatori[this.turnoCorrente];
-      const pescata = this.mazzo.pesca(1);
-      if (pescata.length > 0) {
-        prossimo.mano.push(...pescata);
+    if (maniVuote) {
+      if (this.mazzo.rimanenti() === 0) {
+        // Fine round
+        this.fineRound();
+      } else {
+        // Distribuisci una nuova manche da 3 carte
+        this.distribuisciMano();
       }
     }
 
@@ -553,4 +565,4 @@ class ScoponeScientifico {
   }
 }
 
-module.exports = { ScoponeScientifico, Carta, Mazzo, Giocatore, SEMI, VALORI };
+module.exports = { ScopaClassica, Carta, Mazzo, Giocatore, SEMI, VALORI };

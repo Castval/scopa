@@ -4,11 +4,15 @@ const { Server } = require('socket.io');
 const path = require('path');
 const { ScopaMaresciallo } = require('./games/maresciallo');
 const { ScoponeScientifico } = require('./games/scientifico');
+const { ScopaClassica } = require('./games/classica');
 
-function creaPartita(tipo, codice, punti, num) {
-  if (tipo === 'scientifico') return new ScoponeScientifico(codice, punti);
+function creaPartita(tipo, codice, punti, num, opzioni = {}) {
+  if (tipo === 'scientifico') return new ScoponeScientifico(codice, punti, opzioni);
+  if (tipo === 'classica') return new ScopaClassica(codice, punti, opzioni);
   return new ScopaMaresciallo(codice, punti, num);
 }
+
+const TIPI_2_GIOCATORI = ['scientifico', 'classica'];
 const db = require('./db');
 const torneo = require('./tournament');
 
@@ -187,7 +191,59 @@ function avviaPartitePronteTorneo(torneoId) {
 // Stanze di gioco
 const stanze = new Map();
 const disconnessioniPendenti = new Map();
+const timerTurni = new Map(); // codice -> { timer, scadenza, giocatoreId }
 const chatLobbyMessaggi = [];
+
+const TURN_TIMEOUT_MS = 180 * 1000;
+
+function cancellaTimerTurno(codice) {
+  const t = timerTurni.get(codice);
+  if (t) { clearTimeout(t.timer); timerTurni.delete(codice); }
+}
+
+function avviaTimerTurno(codice) {
+  cancellaTimerTurno(codice);
+  const partita = stanze.get(codice);
+  if (!partita || partita.stato !== 'inCorso') return;
+  const corrente = partita.getGiocatoreCorrente?.();
+  if (!corrente) return;
+  const scadenza = Date.now() + TURN_TIMEOUT_MS;
+  const timer = setTimeout(() => forfeitPerTimeout(codice, corrente.id), TURN_TIMEOUT_MS);
+  timerTurni.set(codice, { timer, scadenza, giocatoreId: corrente.id });
+  io.to(codice).emit('turnoTimer', { giocatoreId: corrente.id, scadenza });
+}
+
+function forfeitPerTimeout(codice, giocatoreIdAtteso) {
+  const partita = stanze.get(codice);
+  if (!partita) return;
+  const giocatore = partita.giocatori.find(g => g.id === giocatoreIdAtteso);
+  if (!giocatore) return;
+  if (partita.stato !== 'inCorso' && partita.stato !== 'fineRound') return;
+  const corrente = partita.getGiocatoreCorrente?.();
+  if (!corrente || corrente.id !== giocatoreIdAtteso) return; // turno gia' cambiato
+
+  console.log(`Timeout turno: ${giocatore.nome} (${codice}) ha sforato i 180s`);
+  cancellaTimerTurno(codice);
+  const nome = giocatore.nome;
+
+  db.aggiornaStats(nome, { giocate: 1, perse: 1, punti: -1 });
+  for (const g of partita.giocatori) {
+    if (g.nome !== nome) db.aggiornaStats(g.nome, { giocate: 1, vinte: 1, punti: 1 });
+  }
+  const partitaTorneo = torneo.getPartitaDaCodice(codice);
+  if (partitaTorneo) {
+    const sqAvv = partita.giocatori.find(g => g.nome !== nome);
+    const vincitoreId = sqAvv ? (partita.getSquadraDelGiocatore(sqAvv.id) === 0 ? partitaTorneo.squadra_a : partitaTorneo.squadra_b) : partitaTorneo.squadra_b;
+    const ris = torneo.registraRisultato(partitaTorneo.torneo_id, partitaTorneo.round, partitaTorneo.posizione, vincitoreId, 0, 0);
+    if (ris.completato) io.emit('torneoCompletato', { torneoId: partitaTorneo.torneo_id });
+    else { io.emit('torneoAggiornato', { torneoId: partitaTorneo.torneo_id }); if (ris.prossimaPartitaPronta) creaStanzaTorneo(partitaTorneo.torneo_id, ris.round, ris.posizione); }
+  }
+  io.to(codice).emit('avversarioAbbandonato', { nome, motivo: 'timeout' });
+  partita.rimuoviGiocatore(giocatore.id);
+  if (partita.giocatori.filter(g => !g.disconnesso).length === 0) {
+    stanze.delete(codice);
+  }
+}
 
 // Genera codice stanza
 function generaCodiceStanza() {
@@ -235,6 +291,7 @@ io.on('connection', (socket) => {
     if (partita.giocatori.length === partita.maxGiocatori) {
       partita.iniziaPartita();
       for (const g of partita.giocatori) io.to(g.id).emit('partitaIniziata', partita.getStato(g.id));
+      avviaTimerTurno(codiceStanza);
     }
   });
 
@@ -257,13 +314,14 @@ io.on('connection', (socket) => {
   });
 
   // Crea nuova stanza
-  socket.on('creaStanza', ({ nome, puntiVittoria, numGiocatori, tipoGioco }) => {
+  socket.on('creaStanza', ({ nome, puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto }) => {
     const codice = generaCodiceStanza();
-    const tipo = tipoGioco === 'scientifico' ? 'scientifico' : 'maresciallo';
-    const puntiValidi = tipo === 'scientifico' ? [11, 21, 31] : [11, 21, 31, 41, 51];
-    const punti = puntiValidi.includes(puntiVittoria) ? puntiVittoria : (tipo === 'scientifico' ? 21 : 31);
-    const num = tipo === 'scientifico' ? 2 : ([2, 4].includes(numGiocatori) ? numGiocatori : 2);
-    const partita = creaPartita(tipo, codice, punti, num);
+    const tipo = ['scientifico', 'classica', 'maresciallo'].includes(tipoGioco) ? tipoGioco : 'maresciallo';
+    const puntiValidi = TIPI_2_GIOCATORI.includes(tipo) ? [11, 21, 31] : [11, 21, 31, 41, 51];
+    const defPunti = tipo === 'classica' ? 11 : (tipo === 'scientifico' ? 21 : 31);
+    const punti = puntiValidi.includes(puntiVittoria) ? puntiVittoria : defPunti;
+    const num = TIPI_2_GIOCATORI.includes(tipo) ? 2 : ([2, 4].includes(numGiocatori) ? numGiocatori : 2);
+    const partita = creaPartita(tipo, codice, punti, num, { assoPigliaTutto: !!assoPigliaTutto });
     partita.tipoGioco = tipo;
     partita.aggiungiGiocatore(socket.id, nome);
 
@@ -311,6 +369,7 @@ io.on('connection', (socket) => {
       socket.emit('partitaIniziata', partita.getStato(socket.id));
       io.to(codice).emit('giocatoreRiconnesso', { nome });
       console.log(`Giocatore ${nome} riconnesso nella stanza ${codice}`);
+      if (partita.stato === 'inCorso') avviaTimerTurno(codice);
       return;
     }
 
@@ -341,6 +400,7 @@ io.on('connection', (socket) => {
       }
 
       console.log(`Partita iniziata nella stanza ${codice} (${partita.maxGiocatori} giocatori)`);
+      avviaTimerTurno(codice);
     }
   });
 
@@ -369,6 +429,8 @@ io.on('connection', (socket) => {
       socket.emit('mossaNonValida', risultato.errore);
       return;
     }
+
+    cancellaTimerTurno(codice);
 
     // Se è fine round o fine partita
     if (partita.stato === 'fineRound' || partita.stato === 'finePartita') {
@@ -426,6 +488,7 @@ io.on('connection', (socket) => {
           giocatoreId: socket.id
         });
       }
+      avviaTimerTurno(codice);
     }
   });
 
@@ -472,6 +535,7 @@ io.on('connection', (socket) => {
     for (const g of partita.giocatori) {
       io.to(g.id).emit('partitaIniziata', partita.getStato(g.id));
     }
+    avviaTimerTurno(codice);
   });
 
   // Nuova partita
@@ -491,6 +555,7 @@ io.on('connection', (socket) => {
     for (const g of partita.giocatori) {
       io.to(g.id).emit('partitaIniziata', partita.getStato(g.id));
     }
+    avviaTimerTurno(codice);
   });
 
   // Torna alla lobby (solo se partita finita)
@@ -524,6 +589,8 @@ io.on('connection', (socket) => {
 
     const giocatore = partita.giocatori.find(g => g.id === socket.id);
     if (!giocatore) return;
+
+    cancellaTimerTurno(codice);
 
     if (partita.stato === 'inCorso' || partita.stato === 'fineRound') {
       giocatore.disconnesso = true;

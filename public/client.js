@@ -509,11 +509,13 @@ document.getElementById('btnCreaStanza').addEventListener('click', () => {
   }
   const puntiVittoria = parseInt(document.getElementById('puntiVittoria').value);
   const tipoGioco = document.querySelector('input[name="tipoGioco"]:checked').value;
-  const numGiocatori = tipoGioco === 'scientifico' ? 2 : parseInt(document.querySelector('input[name="numGiocatori"]:checked').value);
+  const due = (tipoGioco === 'scientifico' || tipoGioco === 'classica');
+  const numGiocatori = due ? 2 : parseInt(document.querySelector('input[name="numGiocatori"]:checked').value);
+  const assoPigliaTutto = due && document.getElementById('optAssoPigliaTutto')?.checked;
   numGiocatoriAttesa = numGiocatori;
   tipoGiocoCorrente = tipoGioco;
   setSessione({ nome, tipoGioco });
-  socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori, tipoGioco });
+  socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto });
 });
 
 // Stato tipo gioco corrente (impostato dal server in stanzaCreata/unitoAStanza)
@@ -523,22 +525,27 @@ let tipoGiocoCorrente = 'maresciallo';
 function aggiornaOpzioniLobby() {
   const tipo = document.querySelector('input[name="tipoGioco"]:checked')?.value || 'maresciallo';
   const gruppoNum = document.getElementById('gruppoNumGiocatori');
+  const gruppoOpz = document.getElementById('gruppoOpzioniScientifico');
   const sel = document.getElementById('puntiVittoria');
   const regM = document.getElementById('regoleMaresciallo');
+  const regC = document.getElementById('regoleClassica');
   const regS = document.getElementById('regoleScientifico');
-  if (tipo === 'scientifico') {
-    if (gruppoNum) gruppoNum.classList.add('nascosto');
-    // limita opzioni punti a 11/21/31
+  const due = (tipo === 'scientifico' || tipo === 'classica');
+
+  if (due) {
+    gruppoNum?.classList.add('nascosto');
+    gruppoOpz?.classList.remove('nascosto');
     [...sel.options].forEach(o => { o.hidden = !['11','21','31'].includes(o.value); });
-    if (['41','51'].includes(sel.value)) sel.value = '21';
-    if (regM) regM.classList.add('nascosto');
-    if (regS) regS.classList.remove('nascosto');
+    if (['41','51'].includes(sel.value)) sel.value = (tipo === 'classica' ? '11' : '21');
   } else {
-    if (gruppoNum) gruppoNum.classList.remove('nascosto');
+    gruppoNum?.classList.remove('nascosto');
+    gruppoOpz?.classList.add('nascosto');
     [...sel.options].forEach(o => { o.hidden = false; });
-    if (regM) regM.classList.remove('nascosto');
-    if (regS) regS.classList.add('nascosto');
   }
+
+  regM?.classList.toggle('nascosto', tipo !== 'maresciallo');
+  regC?.classList.toggle('nascosto', tipo !== 'classica');
+  regS?.classList.toggle('nascosto', tipo !== 'scientifico');
 }
 document.querySelectorAll('input[name="tipoGioco"]').forEach(r => r.addEventListener('change', aggiornaOpzioniLobby));
 
@@ -559,23 +566,19 @@ document.getElementById('btnUnisciti').addEventListener('click', () => {
   socket.emit('uniscitiStanza', { codice, nome });
 });
 
-// Mostra stanze disponibili
-document.getElementById('btnMostraStanze').addEventListener('click', () => {
+// Mostra stanze disponibili (modal stile burraco)
+function apriModalStanze() {
+  document.getElementById('modalStanze').classList.remove('nascosto');
   socket.emit('richiediStanzeDisponibili');
-});
-
-// Click sull'input mostra anche le stanze
-document.getElementById('codiceStanza').addEventListener('focus', () => {
-  socket.emit('richiediStanzeDisponibili');
-});
-
-// Chiudi lista quando si clicca fuori
-document.addEventListener('click', (e) => {
-  const lista = document.getElementById('listaStanze');
-  const container = document.querySelector('.input-stanza-container');
-  if (!container.contains(e.target) && !lista.contains(e.target)) {
-    lista.classList.add('nascosto');
-  }
+}
+function chiudiModalStanze() {
+  document.getElementById('modalStanze').classList.add('nascosto');
+}
+document.getElementById('btnMostraStanze').addEventListener('click', apriModalStanze);
+document.getElementById('btnAggiornaStanze').addEventListener('click', () => socket.emit('richiediStanzeDisponibili'));
+document.getElementById('btnChiudiStanze').addEventListener('click', chiudiModalStanze);
+document.getElementById('modalStanze').addEventListener('click', (e) => {
+  if (e.target.id === 'modalStanze') chiudiModalStanze();
 });
 
 // Ricevi stanze disponibili
@@ -585,24 +588,33 @@ socket.on('stanzeDisponibili', (stanze) => {
 
   if (stanze.length === 0) {
     lista.innerHTML = '<div class="nessuna-stanza">Nessuna stanza disponibile</div>';
-  } else {
-    stanze.forEach(stanza => {
-      const item = document.createElement('div');
-      item.className = 'stanza-item';
-      const tipoPartita = stanza.numGiocatori === 4 ? '2v2' : '1v1';
-      item.innerHTML = `
-        <span class="codice">${stanza.codice}</span>
-        <span class="creatore">di ${stanza.creatore} (${stanza.puntiVittoria}pt, ${tipoPartita}, ${stanza.giocatoriConnessi}/${stanza.numGiocatori})</span>
-      `;
-      item.addEventListener('click', () => {
-        document.getElementById('codiceStanza').value = stanza.codice;
-        lista.classList.add('nascosto');
-      });
-      lista.appendChild(item);
-    });
+    return;
   }
 
-  lista.classList.remove('nascosto');
+  stanze.forEach(stanza => {
+    const tipo = stanza.tipoGioco || 'maresciallo';
+    const tipoLabel = tipo === 'scientifico' ? 'Scientifico' : (tipo === 'classica' ? 'Classica' : 'Maresciallo');
+    const tipoPartita = stanza.numGiocatori === 4 ? '2v2' : '1v1';
+    const row = document.createElement('div');
+    row.className = 'stanza-row';
+    row.innerHTML = `
+      <span class="badge-tipo ${tipo}">${tipoLabel}</span>
+      <div class="stanza-info">
+        <div class="riga1">${stanza.creatore}</div>
+        <div class="riga2"><span class="codice-mono">${stanza.codice}</span> · ${stanza.puntiVittoria}pt · ${tipoPartita}</div>
+      </div>
+      <span class="stanza-giocatori">${stanza.giocatoriConnessi}/${stanza.numGiocatori}</span>
+    `;
+    row.addEventListener('click', () => {
+      const nome = getNomeUtente();
+      if (!nome) { mostraMessaggio('Devi essere loggato', 'errore'); return; }
+      tipoGiocoCorrente = tipo;
+      setSessione({ nome, codice: stanza.codice, tipoGioco: tipo });
+      socket.emit('uniscitiStanza', { codice: stanza.codice, nome });
+      chiudiModalStanze();
+    });
+    lista.appendChild(row);
+  });
 });
 
 document.getElementById('btnConferma').addEventListener('click', () => {
@@ -679,6 +691,33 @@ socket.on('partitaIniziata', (stato) => {
   renderizzaGioco();
 });
 
+// Timer turno (180s, gestito dal server)
+let turnoTimerInterval = null;
+let turnoTimerScadenza = 0;
+function fermaTurnoTimer() {
+  if (turnoTimerInterval) { clearInterval(turnoTimerInterval); turnoTimerInterval = null; }
+  const el = document.getElementById('turnoTimer');
+  if (el) el.classList.add('nascosto');
+}
+function aggiornaTurnoTimer() {
+  const el = document.getElementById('turnoTimer');
+  const sec = document.getElementById('turnoTimerSec');
+  if (!el || !sec) return;
+  const rim = Math.max(0, Math.ceil((turnoTimerScadenza - Date.now()) / 1000));
+  sec.textContent = rim;
+  el.classList.toggle('warning', rim <= 30 && rim > 10);
+  el.classList.toggle('danger', rim <= 10);
+  if (rim <= 0) fermaTurnoTimer();
+}
+socket.on('turnoTimer', ({ giocatoreId, scadenza }) => {
+  turnoTimerScadenza = scadenza;
+  const el = document.getElementById('turnoTimer');
+  if (el) el.classList.remove('nascosto');
+  aggiornaTurnoTimer();
+  if (turnoTimerInterval) clearInterval(turnoTimerInterval);
+  turnoTimerInterval = setInterval(aggiornaTurnoTimer, 500);
+});
+
 socket.on('statoAggiornato', (dati) => {
   const { cartaGiocata, giocatoreId, ...stato } = dati;
   const eraTurnoMio = statoGioco?.turnoMio;
@@ -724,11 +763,19 @@ socket.on('combinazioniDisponibili', ({ cartaId, combinazioni, puoiPosare: posar
   puoiPosare = posare;
 
   // Se è un asso e c'è almeno una carta a terra, prende tutto automaticamente
-  if (cartaSelezionata && cartaSelezionata.valore === 1 && statoGioco.tavolo.length > 0) {
-    socket.emit('giocaCarta', {
-      cartaId: cartaSelezionata.id,
-      cartePresaIds: statoGioco.tavolo.map(c => c.id)
-    });
+  // (Maresciallo sempre; Scientifico/Classica solo con assoPigliaTutto attivo)
+  const assoSpeciale = tipoGiocoCorrente === 'maresciallo'
+    || ((tipoGiocoCorrente === 'scientifico' || tipoGiocoCorrente === 'classica') && statoGioco.assoPigliaTutto);
+  if (assoSpeciale && cartaSelezionata && cartaSelezionata.valore === 1 && statoGioco.tavolo.length > 0) {
+    // Caso speciale Classica: se c'e' un asso a terra, prende solo l'asso
+    let cartePresaIds;
+    if (tipoGiocoCorrente === 'classica') {
+      const assoTerra = statoGioco.tavolo.find(c => c.valore === 1);
+      cartePresaIds = assoTerra ? [assoTerra.id] : statoGioco.tavolo.map(c => c.id);
+    } else {
+      cartePresaIds = statoGioco.tavolo.map(c => c.id);
+    }
+    socket.emit('giocaCarta', { cartaId: cartaSelezionata.id, cartePresaIds });
     return;
   }
 
@@ -770,6 +817,7 @@ socket.on('mossaNonValida', (errore) => {
 
 socket.on('fineRound', ({ stato, puntiRound, dettagliGiocatore, dettagliAvversario, finePartita, vincitore, pareggio }) => {
   statoGioco = stato;
+  fermaTurnoTimer();
 
   const titoloEl = document.getElementById('titoloFineRound');
   const btnProssimo = document.getElementById('btnProssimoRound');
@@ -883,8 +931,12 @@ socket.on('giocatoreRiconnesso', ({ nome }) => {
     setTimeout(() => { msg.textContent = ''; msg.className = 'messaggio'; }, 3000);
   } else aggiornaMsgDisconnessi();
 });
-socket.on('avversarioAbbandonato', ({ nome }) => {
-  mostraMessaggio(`${nome} ha abbandonato la partita`, 'errore');
+socket.on('avversarioAbbandonato', ({ nome, motivo }) => {
+  fermaTurnoTimer();
+  const msg = motivo === 'timeout'
+    ? `${nome} ha sforato i 180 secondi e ha perso la partita`
+    : `${nome} ha abbandonato la partita`;
+  mostraMessaggio(msg, 'errore');
   setSessione(null);
   partitaTorneoCorrente = false;
   setTimeout(() => mostraSchermata('lobby'), 3000);

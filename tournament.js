@@ -34,7 +34,7 @@ function creaTorneo(nome, numGiocatori, modalitaVittoria, valoreVittoria, contro
   if (![8, 16].includes(numGiocatori)) {
     return { ok: false, errore: 'Numero giocatori deve essere 8 o 16' };
   }
-  const tipo = tipoGioco === 'scientifico' ? 'scientifico' : 'maresciallo';
+  const tipo = ['scientifico', 'classica', 'maresciallo'].includes(tipoGioco) ? tipoGioco : 'maresciallo';
 
   // Controlla che non ci sia gia' un torneo attivo
   const attivo = db.prepare("SELECT id FROM tornei WHERE stato IN ('iscrizioni', 'inCorso')").get();

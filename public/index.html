@@ -119,7 +119,7 @@
         <div class="admin-sezione"><h4>Gestione Torneo</h4>
           <div class="admin-torneo-form">
             <div class="admin-torneo-row"><input type="text" id="adminTorneoNome" placeholder="Nome torneo" maxlength="40"><select id="adminTorneoGiocatori"><option value="8">8 giocatori</option><option value="16">16 giocatori</option></select></div>
-            <div class="admin-torneo-row"><select id="adminTorneoTipo"><option value="maresciallo">Scopa Maresciallo</option><option value="scientifico">Scopone Scientifico</option></select></div>
+            <div class="admin-torneo-row"><select id="adminTorneoTipo"><option value="maresciallo">Scopa Maresciallo</option><option value="classica">Scopa Classica</option><option value="scientifico">Scopone Scientifico</option></select></div>
             <div class="admin-torneo-row"><select id="adminTorneoModalita"><option value="punti_31" selected>31 punti</option><option value="punti_21">21 punti</option><option value="punti_11">11 punti</option></select><button id="btnCreaTorneo" class="btn-primario btn-piccolo">Crea Torneo</button></div>
             <div class="admin-torneo-row"><label class="admin-toggle"><input type="checkbox" id="adminTorneoIp" checked> Blocco stesso IP</label></div>
             <div id="adminTorneoAttivo" class="admin-torneo-attivo"></div>
@@ -132,6 +132,7 @@
           <label>Tipo di gioco:</label>
           <div class="radio-gruppo">
             <label class="radio-label"><input type="radio" name="tipoGioco" value="maresciallo" checked> Scopa Maresciallo</label>
+            <label class="radio-label"><input type="radio" name="tipoGioco" value="classica"> Scopa Classica</label>
             <label class="radio-label"><input type="radio" name="tipoGioco" value="scientifico"> Scopone Scientifico</label>
           </div>
         </div>
@@ -141,6 +142,9 @@
             <label class="radio-label"><input type="radio" name="numGiocatori" value="2" checked> 2 giocatori</label>
             <label class="radio-label"><input type="radio" name="numGiocatori" value="4"> 4 giocatori (2v2)</label>
           </div>
+        </div>
+        <div class="form-gruppo nascosto" id="gruppoOpzioniScientifico">
+          <label class="admin-toggle"><input type="checkbox" id="optAssoPigliaTutto"> Asso piglia tutto</label>
         </div>
         <div class="form-gruppo">
           <label for="puntiVittoria">Punti per vincere:</label>
@@ -154,19 +158,29 @@
         </div>
         <button id="btnCreaStanza" class="btn-primario">Crea Stanza</button>
         <div class="divisore">oppure</div>
+        <button id="btnMostraStanze" class="btn-primario">Stanze disponibili</button>
         <div class="form-gruppo">
           <div class="input-stanza-container">
-            <input type="text" id="codiceStanza" placeholder="Codice stanza" maxlength="6" autocomplete="off">
-            <button type="button" id="btnMostraStanze" class="btn-stanze" title="Mostra stanze disponibili">▼</button>
+            <input type="text" id="codiceStanza" placeholder="oppure inserisci codice" maxlength="6" autocomplete="off">
           </div>
-          <div id="listaStanze" class="lista-stanze nascosto"></div>
-          <button id="btnUnisciti" class="btn-secondario">Unisciti</button>
+          <button id="btnUnisciti" class="btn-secondario">Unisciti con codice</button>
         </div>
       </div>
 
-        <div class="divisore">tornei</div>
-        <button id="btnVaiTorneo" class="btn-torneo">Torneo</button>
+      <!-- Modal stanze disponibili -->
+      <div id="modalStanze" class="modal-stanze nascosto">
+        <div class="modal-stanze-contenuto">
+          <div class="modal-stanze-header">
+            <h3>Stanze disponibili</h3>
+            <button id="btnAggiornaStanze" class="btn-piccolo btn-secondario">Aggiorna</button>
+            <button id="btnChiudiStanze" class="btn-piccolo btn-secondario">Chiudi</button>
+          </div>
+          <div id="listaStanze" class="lista-stanze-grande"></div>
+        </div>
       </div>
+
+      <div class="divisore">tornei</div>
+      <button id="btnVaiTorneo" class="btn-torneo">Torneo</button>
 
       <div id="messaggioLobby" class="messaggio"></div>
 
@@ -221,6 +235,28 @@
         </div>
       </div>
 
+      <div class="sezione-regole nascosto" id="regoleClassica">
+        <h3>Regole Scopa Classica</h3>
+        <div class="regole-contenuto">
+          <p><strong>Mazzo:</strong> 40 carte napoletane</p>
+          <p><strong>Distribuzione:</strong> 4 carte iniziali sul tavolo, 3 carte a testa per ogni manche</p>
+          <h4>Prese</h4>
+          <ul>
+            <li>Se c'è una carta singola dello stesso valore, devi prenderla</li>
+            <li>Asso piglia tutto opzionale; se attivo, in presenza di un asso a terra l'asso prende solo l'asso</li>
+          </ul>
+          <h4>Punteggi</h4>
+          <ul>
+            <li><strong>Scopa:</strong> 1 punto (l'ultima presa del round non conta come scopa)</li>
+            <li><strong>Settebello (7 di denari):</strong> 1 punto</li>
+            <li><strong>Più carte di denari:</strong> 1 punto</li>
+            <li><strong>Più carte totali:</strong> 1 punto</li>
+            <li><strong>Primiera:</strong> 1 punto</li>
+          </ul>
+          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
+        </div>
+      </div>
+
       <div class="sezione-regole nascosto" id="regoleScientifico">
         <h3>Regole Scopone Scientifico</h3>
         <div class="regole-contenuto">
@@ -230,7 +266,7 @@
           <ul>
             <li>Se c'è una carta singola dello stesso valore, devi prenderla (ha priorità sulle somme)</li>
             <li>Se non puoi prendere, devi posare la carta al tavolo</li>
-            <li>L'asso vale 1 (non prende tutto)</li>
+            <li>L'asso vale 1 (non prende tutto, salvo regola opzionale "Asso piglia tutto")</li>
           </ul>
           <h4>Punteggi</h4>
           <ul>
@@ -267,6 +303,7 @@
         </div>
         <div class="info-centro">
           <span id="turnoIndicatore">Turno avversario</span>
+          <span id="turnoTimer" class="turno-timer nascosto">⏱ <span id="turnoTimerSec">180</span>s</span>
           <span class="obiettivo-info">Obiettivo: <strong id="puntiVittoriaDisplay">31</strong> pt</span>
           <span class="mazzo-info">Mazzo: <span id="carteRimanenti">0</span></span>
         </div>
