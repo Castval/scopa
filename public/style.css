@@ -1,0 +1,1081 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1a472a 0%, #2d5a3f 100%);
+  min-height: 100vh;
+  color: #fff;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.schermata {
+  display: none !important;
+}
+
+.schermata.attiva {
+  display: block !important;
+}
+
+/* Lobby */
+#lobby {
+  text-align: center;
+  padding-top: 50px;
+}
+
+#lobby h1 {
+  font-size: 3em;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.sottotitolo {
+  color: #a8d5a2;
+  margin-bottom: 40px;
+}
+
+.form-gruppo {
+  margin: 20px auto;
+  max-width: 300px;
+}
+
+.form-gruppo label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.form-gruppo input, .form-gruppo select {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.form-gruppo select {
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+  appearance: auto;
+}
+
+#codiceStanza {
+  text-transform: uppercase;
+}
+
+/* Input stanza con dropdown */
+.input-stanza-container {
+  display: flex;
+  gap: 0;
+}
+
+.input-stanza-container input {
+  border-radius: 8px 0 0 8px;
+  flex: 1;
+}
+
+.btn-stanze {
+  background: rgba(255,255,255,0.3);
+  border: none;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 15px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.btn-stanze:hover {
+  background: rgba(255,255,255,0.4);
+}
+
+.lista-stanze {
+  background: #fff;
+  border-radius: 8px;
+  margin-top: 5px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.lista-stanze.nascosto {
+  display: none;
+}
+
+.stanza-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  color: #1a472a;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stanza-item:last-child {
+  border-bottom: none;
+}
+
+.stanza-item:hover {
+  background: #f0f0f0;
+}
+
+.stanza-item .codice {
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 1.1em;
+}
+
+.stanza-item .creatore {
+  font-size: 0.9em;
+  color: #666;
+}
+
+.lista-stanze .nessuna-stanza {
+  padding: 15px;
+  text-align: center;
+  color: #666;
+}
+
+.bottoni-lobby {
+  margin-top: 30px;
+}
+
+.btn-primario, .btn-secondario {
+  padding: 12px 30px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin: 5px;
+}
+
+.btn-primario {
+  background: linear-gradient(135deg, #d4af37 0%, #c5a028 100%);
+  color: #1a472a;
+  font-weight: bold;
+}
+
+.btn-primario:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
+}
+
+.btn-secondario {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+.btn-secondario:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+.divisore {
+  margin: 25px 0;
+  color: #a8d5a2;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+}
+
+.divisore::before,
+.divisore::after {
+  content: '';
+  flex: 1;
+  max-width: 100px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #a8d5a2, transparent);
+}
+
+.messaggio {
+  margin-top: 20px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: inline-block;
+}
+
+.messaggio.errore {
+  background: rgba(220, 53, 69, 0.8);
+}
+
+.messaggio.successo {
+  background: rgba(40, 167, 69, 0.8);
+}
+
+/* Messaggio durante il gioco - centrato e sopra tutto */
+#messaggioGioco {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  font-size: 1.2em;
+  padding: 15px 30px;
+}
+
+/* Sezione Regole */
+.sezione-regole {
+  margin-top: 40px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  text-align: left;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.sezione-regole h3 {
+  text-align: center;
+  color: #d4af37;
+  margin-bottom: 15px;
+  cursor: pointer;
+}
+
+.sezione-regole h3::after {
+  content: ' ▼';
+  font-size: 0.7em;
+}
+
+.sezione-regole.chiusa h3::after {
+  content: ' ▶';
+}
+
+.sezione-regole.chiusa .regole-contenuto {
+  display: none;
+}
+
+.regole-contenuto {
+  font-size: 0.9em;
+  line-height: 1.6;
+}
+
+.regole-contenuto h4 {
+  color: #a8d5a2;
+  margin-top: 15px;
+  margin-bottom: 8px;
+}
+
+.regole-contenuto ul {
+  margin-left: 20px;
+  margin-bottom: 10px;
+}
+
+.regole-contenuto li {
+  margin-bottom: 5px;
+}
+
+.regole-contenuto p {
+  margin-bottom: 8px;
+}
+
+/* Attesa */
+#attesa {
+  text-align: center;
+  padding-top: 100px;
+}
+
+.codice-stanza {
+  background: rgba(255,255,255,0.1);
+  padding: 20px 40px;
+  border-radius: 12px;
+  display: inline-block;
+  margin: 30px 0;
+}
+
+.codice-stanza strong {
+  font-size: 2.5em;
+  letter-spacing: 5px;
+  color: #d4af37;
+}
+
+.loader {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: #d4af37;
+  border-radius: 50%;
+  margin: 30px auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Gioco */
+#gioco {
+  display: none;
+}
+
+#gioco.attiva {
+  display: block;
+}
+
+.info-partita {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0,0,0,0.3);
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.info-giocatore {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-giocatore .nome {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.info-giocatore.tu .nome {
+  color: #d4af37;
+}
+
+.info-centro {
+  text-align: center;
+}
+
+#turnoIndicatore {
+  font-weight: bold;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.1);
+}
+
+#turnoIndicatore.mio-turno {
+  background: #d4af37;
+  color: #1a472a;
+}
+
+.area-avversario, .area-giocatore {
+  margin: 20px 0;
+}
+
+.area-avversario h3, .area-giocatore h3, .tavolo-container h3 {
+  text-align: center;
+  margin-bottom: 10px;
+  color: #a8d5a2;
+}
+
+.mano-carte {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 150px;
+}
+
+.mano-carte.dorso .carta {
+  background: linear-gradient(135deg, #8b0000 0%, #5c0000 100%);
+}
+
+.mano-carte.dorso .carta::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  border: 2px solid #d4af37;
+  border-radius: 4px;
+}
+
+/* Carte */
+.carta {
+  width: 80px;
+  height: 140px;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.carta img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.carta:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+
+.carta.selezionata {
+  transform: translateY(-15px);
+  box-shadow: 0 12px 25px rgba(212, 175, 55, 0.6);
+  outline: 3px solid #d4af37;
+}
+
+.carta.selezionabile {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
+}
+
+/* Evidenzia carte speciali */
+.carta.maresciallo {
+  outline: 2px solid #ff6b6b;
+}
+
+.carta.settebello {
+  outline: 2px solid #d4af37;
+}
+
+/* Tavolo */
+.tavolo-container {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  border-radius: 12px;
+  margin: 20px 0;
+}
+
+.tavolo {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 150px;
+  padding: 10px;
+}
+
+.tavolo .carta {
+  cursor: pointer;
+}
+
+/* Azioni */
+.azioni-mossa {
+  text-align: center;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 12px;
+}
+
+.azioni-mossa.nascosto {
+  display: none;
+}
+
+/* Fine Round */
+#fineRound {
+  text-align: center;
+  padding-top: 50px;
+}
+
+.riepilogo-punti {
+  display: flex;
+  justify-content: center;
+  gap: 60px;
+  margin: 40px 0;
+}
+
+.colonna-punti {
+  background: rgba(255,255,255,0.1);
+  padding: 30px 50px;
+  border-radius: 12px;
+}
+
+.colonna-punti h3 {
+  margin-bottom: 15px;
+  color: #d4af37;
+}
+
+.tabella-punti {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+.tabella-punti td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.tabella-punti td:first-child {
+  text-align: left;
+}
+
+.tabella-punti td:last-child {
+  text-align: right;
+  font-weight: bold;
+}
+
+.tabella-punti .riga-totale {
+  border-top: 2px solid #d4af37;
+  background: rgba(212, 175, 55, 0.2);
+}
+
+.tabella-punti .riga-totale td {
+  padding: 10px;
+  font-weight: bold;
+  color: #d4af37;
+}
+
+.punti-totali {
+  margin-top: 10px;
+  font-size: 1.2em;
+}
+
+.colonna-punti p {
+  margin: 10px 0;
+}
+
+/* Mini carte nel riepilogo */
+.carte-cell {
+  padding-left: 10px;
+  text-align: left;
+}
+
+.mini-carte {
+  display: inline-flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.mini-carta {
+  width: 28px;
+  height: 42px;
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.mini-carta img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mini-carta.con-punti {
+  position: relative;
+}
+
+.mini-carta .punti-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #d4af37;
+  color: #1a472a;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 3px;
+  border-radius: 6px;
+}
+
+.conteggio-carte {
+  font-size: 0.85em;
+  color: #a8d5a2;
+}
+
+.nascosto {
+  display: none !important;
+}
+
+/* Carta giocata dall'avversario */
+.carta-avversario-giocata {
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  animation: cartaAvversario 1s ease-in-out;
+  outline: 3px solid #ff6b6b;
+  box-shadow: 0 0 25px rgba(255, 107, 107, 0.8);
+  z-index: 100;
+}
+
+.tavolo-container {
+  position: relative;
+}
+
+@keyframes cartaAvversario {
+  0% {
+    transform: translateX(-50%) translateY(-30px) scale(1.3);
+    opacity: 0;
+  }
+  20% {
+    transform: translateX(-50%) translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  80% {
+    transform: translateX(-50%) translateY(0) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(0) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Area avversario con prese */
+.area-avversario-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 30px;
+  margin: 20px 0;
+}
+
+.area-avversario-container .area-avversario {
+  flex: 1;
+  margin: 0;
+}
+
+.area-avversario-container .area-prese {
+  min-width: 120px;
+  text-align: center;
+}
+
+.area-avversario-container .area-prese h4 {
+  color: #ff9999;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+/* Area giocatore con prese */
+.area-giocatore-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 30px;
+  margin: 20px 0;
+}
+
+.area-giocatore {
+  flex: 1;
+  margin: 0;
+}
+
+.area-prese {
+  min-width: 120px;
+  text-align: center;
+}
+
+.area-prese h4 {
+  color: #a8d5a2;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+/* Mazzo delle prese */
+.mazzo-prese {
+  position: relative;
+  width: 90px;
+  height: 140px;
+  margin: 0 auto;
+}
+
+.mazzo-prese .carta-presa {
+  position: absolute;
+  width: 70px;
+  height: 120px;
+  background: linear-gradient(135deg, #8b0000 0%, #5c0000 100%);
+  border-radius: 6px;
+  box-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+  cursor: default;
+}
+
+.mazzo-prese .carta-presa::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  border: 1.5px solid #d4af37;
+  border-radius: 3px;
+}
+
+/* Carta scopa - ruotata di traverso */
+.mazzo-prese .carta-scopa {
+  position: absolute;
+  width: 70px;
+  height: 120px;
+  border-radius: 6px;
+  box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+  cursor: default;
+  transform: rotate(90deg);
+  z-index: 50;
+  overflow: visible;
+}
+
+.mazzo-prese .carta-scopa img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* Indicatore punti scopa */
+.mazzo-prese .scopa-punti {
+  position: absolute;
+  top: -25px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-90deg);
+  background: #d4af37;
+  color: #1a472a;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 4px 8px;
+  border-radius: 8px;
+  z-index: 200;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  white-space: nowrap;
+}
+
+.mazzo-prese .scopa-punti.negativo {
+  background: #ff6b6b;
+  color: #fff;
+}
+
+.mazzo-prese .scopa-punti.super {
+  background: #4ade80;
+  color: #1a472a;
+}
+
+/* Contatore prese */
+.contatore-prese {
+  margin-top: 10px;
+  font-size: 0.85em;
+  color: #a8d5a2;
+}
+
+/* Radio gruppo giocatori */
+.radio-gruppo {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.radio-label {
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.2s;
+}
+
+.radio-label:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.radio-label input[type="radio"] {
+  margin-right: 6px;
+}
+
+/* Giocatori connessi nella schermata attesa */
+.giocatori-connessi {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+
+.giocatore-connesso {
+  background: rgba(212, 175, 55, 0.3);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-weight: bold;
+  color: #d4af37;
+}
+
+/* Altri giocatori (area dinamica) */
+.altri-giocatori-mani {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  flex: 1;
+}
+
+.area-altro-giocatore {
+  text-align: center;
+}
+
+.area-altro-giocatore .nome-altro {
+  font-size: 0.9em;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #ff9999;
+}
+
+.area-altro-giocatore .nome-altro.compagno-label {
+  color: #a8d5a2;
+}
+
+.area-altro-giocatore.compagno .nome-altro {
+  color: #a8d5a2;
+}
+
+.area-altro-giocatore .mano-carte {
+  min-height: auto;
+}
+
+.area-altro-giocatore .carta {
+  width: 50px;
+  height: 87px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  #app { padding: 6px; }
+
+  #gioco.attiva { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .carta {
+    width: 48px;
+    height: 84px;
+  }
+
+  .info-partita {
+    flex-direction: row;
+    gap: 6px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    font-size: 0.75em;
+  }
+  .info-giocatore { gap: 1px; }
+  .info-giocatore .nome { font-size: 0.95em; }
+  .info-centro { font-size: 0.85em; }
+  #turnoIndicatore { padding: 3px 8px; font-size: 0.85em; }
+  .obiettivo-info, .mazzo-info { display: block; font-size: 0.85em; }
+
+  .area-avversario h3, .area-giocatore h3, .tavolo-container h3, .area-prese h4 {
+    display: none;
+  }
+
+  .mano-carte { gap: 4px; min-height: auto; }
+  .tavolo { gap: 4px; min-height: 90px; padding: 2px; }
+  .tavolo-container { padding: 6px; margin: 6px 0; }
+  .area-avversario, .area-giocatore { margin: 4px 0; }
+
+  .azioni-mossa { margin: 6px 0; padding: 6px; }
+  .azioni-mossa button { padding: 6px 12px; font-size: 0.85em; margin: 2px; }
+
+  .riepilogo-punti {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .area-giocatore-container,
+  .area-avversario-container {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 4px 0;
+  }
+
+  .altri-giocatori-mani {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .area-altro-giocatore .carta {
+    width: 36px;
+    height: 63px;
+  }
+
+  .area-prese, .area-avversario-container .area-prese {
+    order: initial;
+    margin-top: 0;
+    min-width: auto;
+  }
+
+  .mazzo-prese {
+    width: 50px;
+    height: 84px;
+  }
+
+  .mazzo-prese .carta-presa,
+  .mazzo-prese .carta-scopa {
+    width: 40px;
+    height: 70px;
+  }
+
+  .mazzo-prese .scopa-punti { font-size: 10px; padding: 2px 5px; top: -18px; }
+  .contatore-prese { font-size: 0.75em; margin-top: 4px; }
+}
+
+/* Sicurezza: nascondi sezioni della lobby quando non si è in lobby */
+#lobby:not(.attiva) .sezione-chat-lobby,
+#lobby:not(.attiva) .sezione-amici,
+#lobby:not(.attiva) .sezione-classifica,
+#lobby:not(.attiva) .sezione-regole {
+  display: none !important;
+}
+
+/* === AUTH/ADMIN/TORNEO/PRIVACY === */
+#auth { text-align: center; padding-top: 40px; }
+#auth h1 { font-size: 3.5em; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); color: #d4af37; }
+#auth .sottotitolo { color: #8bc48b; margin-bottom: 30px; }
+.auth-form { max-width: 320px; margin: 0 auto; }
+.auth-form h2 { color: #d4af37; margin-bottom: 20px; }
+.auth-form .form-gruppo { margin: 12px auto; }
+.auth-form .form-gruppo input { width: 100%; }
+.auth-form .btn-primario { width: 100%; margin-top: 10px; }
+.auth-switch { margin-top: 15px; font-size: 0.9em; color: #8bc48b; }
+.auth-switch a { color: #d4af37; text-decoration: none; }
+.auth-switch a:hover { text-decoration: underline; }
+.nascosto { display: none !important; }
+#messaggioAuth { margin-top: 15px; display: none; }
+.auth-info { color: #ffc107; font-size: 0.9em; margin-bottom: 15px; }
+.auth-footer { margin-top: 20px; font-size: 0.8em; }
+.auth-footer a { color: #8bc48b; }
+.gdpr-checkbox { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #ccc; cursor: pointer; margin: 10px auto; max-width: 320px; text-align: left; }
+.gdpr-checkbox input { cursor: pointer; min-width: 18px; min-height: 18px; }
+.gdpr-checkbox a { color: #d4af37; }
+.user-bar { display: flex; align-items: center; justify-content: center; gap: 15px; background: rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 20px; margin-bottom: 20px; max-width: 500px; margin-left: auto; margin-right: auto; flex-wrap: wrap; }
+.user-bar #userNome { font-weight: bold; color: #d4af37; font-size: 1.1em; }
+.user-stats { font-size: 0.85em; color: #8bc48b; }
+.btn-logout { background: rgba(220,53,69,0.6); border: none; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
+.btn-logout:hover { background: rgba(220,53,69,0.8); }
+.btn-elimina-account { background: none; border: none; color: #888; padding: 6px 10px; cursor: pointer; font-size: 0.75em; text-decoration: underline; }
+.btn-elimina-account:hover { color: #ef5350; }
+.btn-admin { background: rgba(138,43,226,0.6); border: none; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
+.btn-admin:hover { background: rgba(138,43,226,0.8); }
+.pannello-admin { max-width: 600px; margin: 0 auto 20px; padding: 20px; background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; text-align: left; }
+.pannello-admin h3 { color: #bb86fc; text-align: center; margin-bottom: 15px; }
+.btn-refresh-admin { display: block; margin: 0 auto 15px; padding: 6px 16px; font-size: 0.85em; }
+.admin-sezione { margin-bottom: 15px; }
+.admin-sezione h4 { color: #bb86fc; margin-bottom: 8px; font-size: 0.95em; }
+.admin-lista { font-size: 0.9em; }
+.admin-utente { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 4px; gap: 8px; flex-wrap: wrap; }
+.admin-utente .nome { color: #e0e0e0; }
+.admin-utente .stato { font-size: 0.8em; color: #8bc48b; }
+.admin-utente .stato.in-stanza { color: #d4af37; }
+.admin-email { font-size: 0.8em; color: #888; flex: 1; }
+.admin-ip { font-size: 0.75em; color: #666; font-family: monospace; }
+.btn-reset-pwd { padding: 3px 10px; font-size: 0.75em; border: none; border-radius: 4px; background: rgba(255,193,7,0.3); color: #ffc107; cursor: pointer; }
+.btn-reset-pwd:hover { background: rgba(255,193,7,0.5); }
+.btn-cancella-utente { padding: 3px 10px; font-size: 0.75em; border: none; border-radius: 4px; background: rgba(220,53,69,0.3); color: #ef5350; cursor: pointer; }
+.btn-cancella-utente:hover { background: rgba(220,53,69,0.5); }
+.admin-lista-vuota { color: #888; font-style: italic; padding: 8px; }
+.admin-stanza { padding: 6px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 4px; font-size: 0.85em; }
+.admin-torneo-form { display: flex; flex-direction: column; gap: 8px; }
+.admin-torneo-row { display: flex; gap: 8px; }
+.admin-torneo-row input, .admin-torneo-row select { flex: 1; padding: 8px; border-radius: 6px; border: none; font-size: 0.85em; }
+.admin-toggle { display: flex; align-items: center; gap: 8px; font-size: 0.85em; color: #ccc; cursor: pointer; }
+.admin-toggle input { cursor: pointer; }
+.admin-torneo-attivo { margin-top: 8px; font-size: 0.85em; }
+.admin-torneo-info { color: #8bc48b; margin-bottom: 5px; }
+.btn-piccolo { padding: 8px 16px; font-size: 13px; }
+.sezione-classifica { margin-top: 25px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; max-width: 500px; margin-left: auto; margin-right: auto; }
+.sezione-classifica h3 { text-align: center; color: #d4af37; margin-bottom: 15px; cursor: pointer; }
+.sezione-classifica h3::after { content: ' \25BC'; font-size: 0.7em; }
+.sezione-classifica.chiusa h3::after { content: ' \25B6'; }
+.sezione-classifica.chiusa .classifica-contenuto { display: none; }
+#tabellaClassifica { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+#tabellaClassifica th { color: #d4af37; padding: 8px 6px; border-bottom: 1px solid rgba(255,255,255,0.2); text-align: center; }
+#tabellaClassifica td { padding: 7px 6px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.05); }
+#tabellaClassifica tr.utente-corrente td { color: #d4af37; font-weight: bold; }
+.nome-col { text-align: left !important; }
+.btn-torneo { background: linear-gradient(135deg, #e91e63 0%, #c2185b 100%); color: #fff; font-weight: bold; padding: 12px 30px; font-size: 16px; border: none; border-radius: 8px; cursor: pointer; margin: 5px; }
+.btn-torneo:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(233,30,99,0.4); }
+.torneo-header { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+.torneo-header h2 { color: #d4af37; flex: 1; text-align: center; margin-right: 80px; }
+#torneoScreen, #tabelloneScreen { padding: 20px; }
+.torneo-info { text-align: center; margin-bottom: 20px; }
+.torneo-info h3 { color: #d4af37; font-size: 1.5em; margin-bottom: 5px; }
+.torneo-info p { color: #8bc48b; }
+.torneo-progress { margin: 15px auto; max-width: 400px; }
+.torneo-progress-bar { background: rgba(255,255,255,0.1); border-radius: 8px; height: 24px; overflow: hidden; }
+.torneo-progress-fill { background: linear-gradient(135deg, #e91e63, #d4af37); height: 100%; transition: width 0.3s; border-radius: 8px; }
+.torneo-progress-text { text-align: center; margin-top: 5px; font-size: 0.9em; color: #ccc; }
+.torneo-squadre-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; max-width: 600px; margin: 20px auto; }
+.torneo-squadra-card { background: rgba(255,255,255,0.08); border-radius: 8px; padding: 12px; text-align: center; }
+.torneo-squadra-card h4 { color: #d4af37; font-size: 0.9em; margin-bottom: 6px; }
+.torneo-squadra-card p { font-size: 0.85em; color: #ccc; }
+.torneo-squadra-card .slot-vuoto { color: #666; font-style: italic; }
+.btn-unisciti-squadra { width: 100%; margin-top: 6px; padding: 6px; font-size: 0.8em; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; background: linear-gradient(135deg, #d4af37, #b8962e); color: #1a2a1a; }
+.torneo-btns { text-align: center; margin-top: 20px; }
+.torneo-nessuno { text-align: center; color: #888; padding: 60px 20px; font-size: 1.1em; }
+.tabellone-wrapper { overflow-x: auto; padding: 10px 0; }
+.tabellone { display: flex; gap: 30px; min-width: max-content; align-items: center; padding: 20px; }
+.tabellone-round { display: flex; flex-direction: column; gap: 0; justify-content: center; }
+.tabellone-round-title { text-align: center; color: #d4af37; font-weight: bold; font-size: 0.85em; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.tabellone-match { background: rgba(255,255,255,0.06); border-radius: 8px; padding: 8px 12px; min-width: 150px; border-left: 3px solid transparent; }
+.tabellone-match.in-corso { border-left-color: #4caf50; }
+.tabellone-match.completata { border-left-color: #d4af37; }
+.tabellone-match.attesa { border-left-color: #666; }
+.tabellone-team { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85em; color: #ccc; }
+.tabellone-team.vincitore { color: #d4af37; font-weight: bold; }
+.tabellone-team.tbd { color: #555; font-style: italic; }
+.tabellone-connector { width: 30px; }
+.tabellone-vai-btn { display: block; margin-top: 5px; padding: 4px 8px; font-size: 0.75em; background: #4caf50; color: #fff; border: none; border-radius: 4px; cursor: pointer; text-align: center; }
+.tabellone-vai-btn:hover { background: #388e3c; }
+.torneo-attesa-msg { text-align: center; padding: 20px; margin-top: 20px; background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); border-radius: 10px; color: #ffc107; font-size: 1.1em; font-weight: bold; animation: pulse-attesa 2s ease-in-out infinite; }
+@keyframes pulse-attesa { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.torneo-vittoria { text-align: center; padding: 40px 20px; }
+.torneo-vittoria-trofeo { font-size: 5em; margin-bottom: 15px; animation: trofeo-bounce 1s ease-in-out infinite alternate; }
+@keyframes trofeo-bounce { 0% { transform: translateY(0) scale(1); } 100% { transform: translateY(-15px) scale(1.1); } }
+.torneo-vittoria h1 { color: #d4af37; font-size: 2em; margin-bottom: 10px; }
+.torneo-vittoria p { color: #8bc48b; font-size: 1.1em; margin-bottom: 25px; }
+.privacy-page { max-width: 700px; margin: 0 auto; padding: 20px; text-align: left; line-height: 1.7; font-size: 0.9em; }
+.privacy-page h2 { color: #d4af37; text-align: center; margin-bottom: 5px; }
+.privacy-data { text-align: center; color: #888; font-size: 0.85em; margin-bottom: 20px; }
+.privacy-page h3 { color: #8bc48b; margin-top: 18px; margin-bottom: 6px; }
+.privacy-page ul { margin-left: 20px; margin-bottom: 10px; }
+.storage-banner { position: fixed; bottom: 0; left: 0; right: 0; z-index: 9999; background: rgba(0,0,0,0.95); border-top: 1px solid rgba(212,175,55,0.3); padding: 15px 20px; display: flex; align-items: center; justify-content: center; gap: 15px; font-size: 0.85em; color: #ccc; }
+.storage-banner p { margin: 0; flex: 1; max-width: 600px; }
+.storage-banner a { color: #d4af37; }
+
+/* === NOTIFICHE/CHAT/AMICI === */
+.btn-notifiche { background: rgba(255,255,255,0.1); border: none; color: #fff; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 1em; }
+.btn-notifiche:hover { background: rgba(255,255,255,0.2); }
+.btn-notifiche.attive { background: rgba(76,175,80,0.3); }
+.sezione-chat-lobby, .sezione-amici { margin-top: 20px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 12px; max-width: 500px; margin-left: auto; margin-right: auto; }
+.sezione-chat-lobby h3, .sezione-amici h3 { text-align: center; color: #d4af37; margin-bottom: 15px; cursor: pointer; }
+.sezione-chat-lobby h3::after, .sezione-amici h3::after { content: " \25BC"; font-size: 0.7em; }
+.sezione-chat-lobby.chiusa h3::after, .sezione-amici.chiusa h3::after { content: " \25B6"; }
+.sezione-chat-lobby.chiusa .chat-lobby-contenuto, .sezione-amici.chiusa .amici-contenuto { display: none; }
+.chat-lobby-messaggi { max-height: 250px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 6px; margin-bottom: 10px; text-align: left; font-size: 0.85em; }
+.chat-lobby-msg { margin-bottom: 4px; word-wrap: break-word; }
+.chat-lobby-ora { color: #666; font-size: 0.8em; }
+.chat-lobby-nome { color: #8bc48b; font-weight: bold; }
+.chat-lobby-nome.self { color: #d4af37; }
+.chat-lobby-testo { color: #e0e0e0; }
+.chat-lobby-input-row { display: flex; gap: 8px; }
+.chat-lobby-input-row input { flex: 1; padding: 8px; border-radius: 6px; border: none; font-size: 0.9em; }
+.amici-aggiungi { display: flex; gap: 8px; margin-bottom: 15px; }
+.amici-aggiungi input { flex: 1; padding: 8px; border-radius: 6px; border: none; font-size: 0.9em; }
+.amici-titolo { color: #ffc107; font-size: 0.85em; margin: 10px 0 5px; }
+.amici-vuoto { color: #666; text-align: center; font-style: italic; padding: 10px; font-size: 0.9em; }
+.amico-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255,255,255,0.05); border-radius: 6px; margin-bottom: 4px; font-size: 0.9em; }
+.amico-row.pending { background: rgba(255,193,7,0.1); }
+.amico-online { width: 8px; height: 8px; border-radius: 50%; background: #4caf50; box-shadow: 0 0 4px #4caf50; }
+.amico-offline { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+.amico-nome { color: #e0e0e0; flex: 1; }
+.amico-stanza { font-size: 0.75em; color: #d4af37; }
+.btn-amico-accetta { padding: 4px 10px; font-size: 0.75em; border: none; border-radius: 4px; background: #4caf50; color: #fff; cursor: pointer; }
+.btn-amico-rifiuta { padding: 4px 10px; font-size: 0.75em; border: none; border-radius: 4px; background: #ef5350; color: #fff; cursor: pointer; }
+.btn-amico-invita { padding: 4px 10px; font-size: 0.75em; border: none; border-radius: 4px; background: rgba(212,175,55,0.4); color: #d4af37; cursor: pointer; }
+.btn-amico-rimuovi { padding: 2px 8px; font-size: 1em; border: none; border-radius: 4px; background: transparent; color: #888; cursor: pointer; }
+.btn-amico-rimuovi:hover { color: #ef5350; }
+

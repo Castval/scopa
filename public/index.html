@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scopa Maresciallo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth -->
+    <div id="auth" class="schermata attiva">
+      <h1>Scopa Maresciallo</h1>
+      <p class="sottotitolo">Gioco di carte con 80 carte napoletane</p>
+      <div id="authLogin" class="auth-form">
+        <h2>Accedi</h2>
+        <div class="form-gruppo"><input type="text" id="loginNome" placeholder="Nome utente o email"></div>
+        <div class="form-gruppo"><input type="password" id="loginPassword" placeholder="Password"></div>
+        <button id="btnLogin" class="btn-primario">Accedi</button>
+        <p class="auth-switch">Non hai un account? <a href="#" id="mostraRegistra">Registrati</a></p>
+      </div>
+      <div id="authRegistra" class="auth-form nascosto">
+        <h2>Registrati</h2>
+        <div class="form-gruppo"><input type="text" id="regNome" placeholder="Nome utente" maxlength="20"></div>
+        <div class="form-gruppo"><input type="email" id="regEmail" placeholder="Email"></div>
+        <div class="form-gruppo"><input type="password" id="regPassword" placeholder="Password (min 4 caratteri)"></div>
+        <div class="form-gruppo"><input type="text" id="regCitta" placeholder="Città" maxlength="50"></div>
+        <label class="gdpr-checkbox"><input type="checkbox" id="regConsensoPrv"> Ho letto e accetto l'<a href="#" id="linkPrivacyReg">informativa sulla privacy</a></label>
+        <button id="btnRegistra" class="btn-primario">Registrati</button>
+        <p class="auth-switch">Hai gia un account? <a href="#" id="mostraLogin">Accedi</a></p>
+      </div>
+      <div id="authCambioPwd" class="auth-form nascosto">
+        <h2>Cambia password</h2>
+        <p class="auth-info">La tua password e' temporanea, scegline una nuova.</p>
+        <div class="form-gruppo"><input type="password" id="nuovaPassword" placeholder="Nuova password (min 4 caratteri)"></div>
+        <div class="form-gruppo"><input type="password" id="confermaNuovaPassword" placeholder="Conferma nuova password"></div>
+        <button id="btnCambiaPwd" class="btn-primario">Cambia password</button>
+      </div>
+      <div id="messaggioAuth" class="messaggio"></div>
+      <p class="auth-footer"><a href="#" id="linkPrivacyAuth">Informativa sulla Privacy</a></p>
+
+      <div class="sezione-regole">
+        <h3>Regole</h3>
+        <div class="regole-contenuto">
+          <p><strong>Mazzo:</strong> 80 carte (2 mazzi napoletani)</p>
+          <p><strong>Distribuzione:</strong> 5 carte a testa, nessuna carta iniziale al tavolo</p>
+
+          <h4>Prese</h4>
+          <ul>
+            <li>L'asso prende tutto (va nelle prese anche se il tavolo è vuoto)</li>
+            <li>Se c'è una carta singola dello stesso valore, devi prenderla (no somme)</li>
+            <li>Non puoi prendere una carta identica (stesso seme e valore) tranne per fare scopa</li>
+          </ul>
+
+          <h4>Punteggi</h4>
+          <ul>
+            <li><strong>Scopa:</strong> 1 punto (3 punti se fatta con carta identica)</li>
+            <li><strong>Maresciallo (10 di spade):</strong> -1 punto se preso, -4 se ci fai scopa</li>
+            <li><strong>Scopa maresciallo con maresciallo:</strong> +10 punti</li>
+            <li><strong>Settebello (7 di denari):</strong> 1 punto (max 2)</li>
+            <li><strong>Otto di denari:</strong> 1 punto se hai anche il settebello (max 2)</li>
+            <li><strong>Più carte di denari:</strong> 1 punto</li>
+            <li><strong>Più carte totali:</strong> 1 punto</li>
+            <li><strong>Primiera:</strong> 1 punto</li>
+            <li><strong>Napola (1,2,3 di denari):</strong> 3 punti + 1 per ogni carta successiva fino al 10 (max 2 napole)</li>
+          </ul>
+
+          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Torneo -->
+    <div id="torneoScreen" class="schermata">
+      <div class="torneo-header"><button id="btnTorneoIndietro" class="btn-secondario btn-piccolo">Indietro</button><h2 id="torneoTitolo">Torneo</h2></div>
+      <div id="torneoContenuto"></div>
+    </div>
+
+    <!-- Tabellone -->
+    <div id="tabelloneScreen" class="schermata">
+      <div class="torneo-header"><button id="btnTabelloneIndietro" class="btn-secondario btn-piccolo">Indietro</button><h2 id="tabelloneTitolo">Tabellone</h2></div>
+      <div id="tabelloneContenuto" class="tabellone-wrapper"></div>
+    </div>
+
+    <!-- Privacy -->
+    <div id="privacyScreen" class="schermata">
+      <div class="privacy-page">
+        <button id="btnPrivacyIndietro" class="btn-secondario btn-piccolo">Indietro</button>
+        <h2>Informativa sulla Privacy</h2>
+        <p class="privacy-data">Ultimo aggiornamento: 6 aprile 2026</p>
+        <h3>Dati raccolti</h3>
+        <ul><li><strong>Dati di registrazione:</strong> nome utente, email, password (criptata)</li><li><strong>Dati di gioco:</strong> statistiche partite</li><li><strong>Dati tecnici:</strong> indirizzo IP (controllo anti-frode tornei)</li></ul>
+        <h3>Finalita</h3><p>Gestione account, funzionamento gioco, classifiche, prevenzione frodi.</p>
+        <h3>Base giuridica</h3><p>Consenso dell'utente (art. 6 par. 1 lett. a GDPR).</p>
+        <h3>Conservazione</h3><p>I dati vengono conservati per la durata dell'account. Alla cancellazione, tutti i dati vengono eliminati.</p>
+        <h3>Diritti</h3><p>Accesso, rettifica, cancellazione (bottone "Elimina account"), portabilita.</p>
+        <h3>Sicurezza</h3><p>Password criptate con bcrypt.</p>
+      </div>
+    </div>
+
+    <!-- Lobby -->
+    <div id="lobby" class="schermata">
+      <h1>Scopa</h1>
+      <div id="userBar" class="user-bar">
+        <span id="userNome"></span>
+        <div id="userStats" class="user-stats"></div>
+        <button id="btnNotifiche" class="btn-notifiche" title="Attiva notifiche">🔔</button>
+        <button id="btnAdmin" class="btn-admin nascosto">Admin</button>
+        <button id="btnEliminaAccount" class="btn-elimina-account">Elimina account</button>
+        <button id="btnLogout" class="btn-logout">Esci</button>
+      </div>
+
+      <div id="pannelloAdmin" class="pannello-admin nascosto">
+        <h3>Pannello Admin</h3>
+        <button id="btnRefreshAdmin" class="btn-secondario btn-refresh-admin">Aggiorna</button>
+        <div class="admin-sezione"><h4>Utenti online (<span id="adminOnlineCount">0</span>)</h4><div id="adminUtentiOnline" class="admin-lista"></div></div>
+        <div class="admin-sezione"><h4>Stanze attive (<span id="adminStanzeCount">0</span>)</h4><div id="adminStanze" class="admin-lista"></div></div>
+        <div class="admin-sezione"><h4>Utenti registrati (<span id="adminUtentiCount">0</span>)</h4><div id="adminUtentiRegistrati" class="admin-lista"></div></div>
+        <div class="admin-sezione"><h4>Gestione Torneo</h4>
+          <div class="admin-torneo-form">
+            <div class="admin-torneo-row"><input type="text" id="adminTorneoNome" placeholder="Nome torneo" maxlength="40"><select id="adminTorneoGiocatori"><option value="8">8 giocatori</option><option value="16">16 giocatori</option></select></div>
+            <div class="admin-torneo-row"><select id="adminTorneoTipo"><option value="maresciallo">Scopa Maresciallo</option><option value="scientifico">Scopone Scientifico</option></select></div>
+            <div class="admin-torneo-row"><select id="adminTorneoModalita"><option value="punti_31" selected>31 punti</option><option value="punti_21">21 punti</option><option value="punti_11">11 punti</option></select><button id="btnCreaTorneo" class="btn-primario btn-piccolo">Crea Torneo</button></div>
+            <div class="admin-torneo-row"><label class="admin-toggle"><input type="checkbox" id="adminTorneoIp" checked> Blocco stesso IP</label></div>
+            <div id="adminTorneoAttivo" class="admin-torneo-attivo"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bottoni-lobby">
+        <div class="form-gruppo">
+          <label>Tipo di gioco:</label>
+          <div class="radio-gruppo">
+            <label class="radio-label"><input type="radio" name="tipoGioco" value="maresciallo" checked> Scopa Maresciallo</label>
+            <label class="radio-label"><input type="radio" name="tipoGioco" value="scientifico"> Scopone Scientifico</label>
+          </div>
+        </div>
+        <div class="form-gruppo" id="gruppoNumGiocatori">
+          <label>Numero giocatori:</label>
+          <div class="radio-gruppo">
+            <label class="radio-label"><input type="radio" name="numGiocatori" value="2" checked> 2 giocatori</label>
+            <label class="radio-label"><input type="radio" name="numGiocatori" value="4"> 4 giocatori (2v2)</label>
+          </div>
+        </div>
+        <div class="form-gruppo">
+          <label for="puntiVittoria">Punti per vincere:</label>
+          <select id="puntiVittoria">
+            <option value="11">11 punti</option>
+            <option value="21">21 punti</option>
+            <option value="31" selected>31 punti</option>
+            <option value="41">41 punti</option>
+            <option value="51">51 punti</option>
+          </select>
+        </div>
+        <button id="btnCreaStanza" class="btn-primario">Crea Stanza</button>
+        <div class="divisore">oppure</div>
+        <div class="form-gruppo">
+          <div class="input-stanza-container">
+            <input type="text" id="codiceStanza" placeholder="Codice stanza" maxlength="6" autocomplete="off">
+            <button type="button" id="btnMostraStanze" class="btn-stanze" title="Mostra stanze disponibili">▼</button>
+          </div>
+          <div id="listaStanze" class="lista-stanze nascosto"></div>
+          <button id="btnUnisciti" class="btn-secondario">Unisciti</button>
+        </div>
+      </div>
+
+        <div class="divisore">tornei</div>
+        <button id="btnVaiTorneo" class="btn-torneo">Torneo</button>
+      </div>
+
+      <div id="messaggioLobby" class="messaggio"></div>
+
+      <div class="sezione-chat-lobby chiusa">
+        <h3 id="toggleChatLobby">Chat</h3>
+        <div class="chat-lobby-contenuto">
+          <div id="chatLobbyMessaggi" class="chat-lobby-messaggi"></div>
+          <div class="chat-lobby-input-row"><input type="text" id="chatLobbyInput" placeholder="Scrivi un messaggio..." maxlength="200"><button id="btnChatLobbyInvia" class="btn-piccolo btn-primario">Invia</button></div>
+        </div>
+      </div>
+
+      <div class="sezione-amici chiusa">
+        <h3 id="toggleAmici">Amici <span id="amiciCount"></span></h3>
+        <div class="amici-contenuto">
+          <div class="amici-aggiungi"><input type="text" id="amiciNomeInput" placeholder="Nome utente" maxlength="20"><button id="btnAggiungiAmico" class="btn-piccolo btn-primario">Aggiungi</button></div>
+          <div id="amiciRichieste"></div>
+          <div id="amiciLista"></div>
+        </div>
+      </div>
+
+      <div class="sezione-classifica chiusa">
+        <h3 id="toggleClassifica">Classifica</h3>
+        <div class="classifica-contenuto">
+          <table id="tabellaClassifica"><thead><tr><th>#</th><th>Giocatore</th><th>V</th><th>P</th><th>Punti</th><th>Tornei</th></tr></thead><tbody id="classificaBody"></tbody></table>
+        </div>
+      </div>
+
+      <div class="sezione-regole" id="regoleMaresciallo">
+        <h3>Regole Scopa Maresciallo</h3>
+        <div class="regole-contenuto">
+          <p><strong>Mazzo:</strong> 80 carte (2 mazzi napoletani)</p>
+          <p><strong>Distribuzione:</strong> 5 carte a testa, nessuna carta iniziale al tavolo</p>
+          <h4>Prese</h4>
+          <ul>
+            <li>L'asso prende tutto (va nelle prese anche se il tavolo è vuoto)</li>
+            <li>Se c'è una carta singola dello stesso valore, devi prenderla (no somme)</li>
+            <li>Non puoi prendere una carta identica (stesso seme e valore) tranne per fare scopa</li>
+          </ul>
+          <h4>Punteggi</h4>
+          <ul>
+            <li><strong>Scopa:</strong> 1 punto (3 punti se fatta con carta identica)</li>
+            <li><strong>Maresciallo (10 di spade):</strong> -1 punto se preso, -4 se ci fai scopa</li>
+            <li><strong>Scopa maresciallo con maresciallo:</strong> +10 punti</li>
+            <li><strong>Settebello (7 di denari):</strong> 1 punto (max 2)</li>
+            <li><strong>Otto di denari:</strong> 1 punto se hai anche il settebello (max 2)</li>
+            <li><strong>Più carte di denari:</strong> 1 punto</li>
+            <li><strong>Più carte totali:</strong> 1 punto</li>
+            <li><strong>Primiera:</strong> 1 punto</li>
+            <li><strong>Napola (1,2,3 di denari):</strong> 3 punti + 1 per ogni carta successiva fino al 10 (max 2 napole)</li>
+          </ul>
+          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
+        </div>
+      </div>
+
+      <div class="sezione-regole nascosto" id="regoleScientifico">
+        <h3>Regole Scopone Scientifico</h3>
+        <div class="regole-contenuto">
+          <p><strong>Mazzo:</strong> 40 carte napoletane (1 mazzo)</p>
+          <p><strong>Distribuzione:</strong> 10 carte a testa, nessuna carta al tavolo</p>
+          <h4>Prese</h4>
+          <ul>
+            <li>Se c'è una carta singola dello stesso valore, devi prenderla (ha priorità sulle somme)</li>
+            <li>Se non puoi prendere, devi posare la carta al tavolo</li>
+            <li>L'asso vale 1 (non prende tutto)</li>
+          </ul>
+          <h4>Punteggi</h4>
+          <ul>
+            <li><strong>Scopa:</strong> 1 punto (l'ultima presa del round non conta come scopa)</li>
+            <li><strong>Settebello (7 di denari):</strong> 1 punto</li>
+            <li><strong>Più carte di denari:</strong> 1 punto</li>
+            <li><strong>Più carte totali:</strong> 1 punto</li>
+            <li><strong>Primiera:</strong> 1 punto</li>
+          </ul>
+          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Schermata Attesa -->
+    <div id="attesa" class="schermata">
+      <h2>Stanza creata!</h2>
+      <div class="codice-stanza">
+        <span>Codice:</span>
+        <strong id="codiceStanzaDisplay"></strong>
+      </div>
+      <p>Condividi questo codice con gli altri giocatori</p>
+      <div id="giocatoriConnessi" class="giocatori-connessi"></div>
+      <div class="loader"></div>
+      <p id="attesaMessaggio">In attesa degli altri giocatori...</p>
+    </div>
+
+    <!-- Schermata Gioco -->
+    <div id="gioco" class="schermata">
+      <div class="info-partita">
+        <div class="info-giocatore avversario">
+          <span class="nome" id="nomeAvversario">Avversario</span>
+          <span class="punti">Punti: <strong id="puntiAvversario">0</strong></span>
+        </div>
+        <div class="info-centro">
+          <span id="turnoIndicatore">Turno avversario</span>
+          <span class="obiettivo-info">Obiettivo: <strong id="puntiVittoriaDisplay">31</strong> pt</span>
+          <span class="mazzo-info">Mazzo: <span id="carteRimanenti">0</span></span>
+        </div>
+        <div class="info-giocatore tu">
+          <span class="nome" id="nomeGiocatoreDisplay">Tu</span>
+          <span class="punti">Punti: <strong id="puntiGiocatore">0</strong></span>
+        </div>
+      </div>
+
+      <div id="areaAvversarioContainer" class="area-avversario-container">
+        <!-- Popolato dinamicamente da JS -->
+      </div>
+
+      <div class="tavolo-container">
+        <h3>Tavolo</h3>
+        <div id="tavolo" class="tavolo"></div>
+      </div>
+
+      <div class="area-giocatore-container">
+        <div class="area-prese">
+          <h4>Le tue prese</h4>
+          <div id="mazzoPrese" class="mazzo-prese"></div>
+        </div>
+        <div class="area-giocatore">
+          <h3>La tua mano</h3>
+          <div id="manoGiocatore" class="mano-carte"></div>
+        </div>
+      </div>
+
+      <div id="azioniMossa" class="azioni-mossa nascosto">
+        <button id="btnConferma" class="btn-primario">Conferma</button>
+        <button id="btnAnnulla" class="btn-secondario">Annulla</button>
+        <button id="btnPosa" class="btn-secondario">Posa carta</button>
+      </div>
+
+      <div id="messaggioGioco" class="messaggio"></div>
+    </div>
+
+    <!-- Schermata Fine Round -->
+    <div id="fineRound" class="schermata">
+      <h2 id="titoloFineRound">Fine Round</h2>
+      <div class="riepilogo-punti">
+        <div class="colonna-punti">
+          <h3 id="nomeG1">Giocatore 1</h3>
+          <table class="tabella-punti">
+            <tr><td>Scope</td><td id="scopeG1">0</td><td class="carte-cell"><span id="carteScopeG1" class="mini-carte"></span></td></tr>
+            <tr><td>Denari</td><td id="denariG1">0</td><td></td></tr>
+            <tr><td>Carte</td><td id="carteG1">0</td><td></td></tr>
+            <tr><td>Primiera</td><td id="primieraG1">0</td><td class="carte-cell"><span id="cartePrimieraG1" class="mini-carte"></span></td></tr>
+            <tr><td>Settebello</td><td id="settebelloG1">0</td><td></td></tr>
+            <tr><td>Otto denari</td><td id="ottoG1">0</td><td></td></tr>
+            <tr><td>Napola</td><td id="napolaG1">0</td><td></td></tr>
+            <tr><td>Marescialli</td><td id="marescialliG1">0</td><td></td></tr>
+            <tr class="riga-totale"><td>Totale round</td><td id="puntiRoundG1">0</td><td></td></tr>
+          </table>
+          <p class="punti-totali">Punteggio: <strong id="puntiTotaliG1">0</strong></p>
+        </div>
+        <div class="colonna-punti">
+          <h3 id="nomeG2">Giocatore 2</h3>
+          <table class="tabella-punti">
+            <tr><td>Scope</td><td id="scopeG2">0</td><td class="carte-cell"><span id="carteScopeG2" class="mini-carte"></span></td></tr>
+            <tr><td>Denari</td><td id="denariG2">0</td><td></td></tr>
+            <tr><td>Carte</td><td id="carteG2">0</td><td></td></tr>
+            <tr><td>Primiera</td><td id="primieraG2">0</td><td class="carte-cell"><span id="cartePrimieraG2" class="mini-carte"></span></td></tr>
+            <tr><td>Settebello</td><td id="settebelloG2">0</td><td></td></tr>
+            <tr><td>Otto denari</td><td id="ottoG2">0</td><td></td></tr>
+            <tr><td>Napola</td><td id="napolaG2">0</td><td></td></tr>
+            <tr><td>Marescialli</td><td id="marescialliG2">0</td><td></td></tr>
+            <tr class="riga-totale"><td>Totale round</td><td id="puntiRoundG2">0</td><td></td></tr>
+          </table>
+          <p class="punti-totali">Punteggio: <strong id="puntiTotaliG2">0</strong></p>
+        </div>
+      </div>
+      <button id="btnProssimoRound" class="btn-primario">Prossimo Round</button>
+      <button id="btnNuovaPartita" class="btn-primario nascosto">Nuova Partita</button>
+      <button id="btnTornaLobby" class="btn-secondario nascosto">Torna alla Lobby</button>
+    </div>
+  </div>
+
+  <div id="storageBanner" class="storage-banner nascosto">
+    <p>Questo sito utilizza localStorage per il funzionamento del gioco. <a href="#" id="linkPrivacyBanner">Informativa Privacy</a></p>
+    <button id="btnAccettaStorage" class="btn-primario btn-piccolo">Accetto</button>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

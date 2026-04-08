@@ -1,0 +1,204 @@
+const Database = require('better-sqlite3');
+const bcrypt = require('bcryptjs');
+const path = require('path');
+
+const db = new Database(path.join(__dirname, 'scopa.db'));
+
+// Attiva WAL per performance
+db.pragma('journal_mode = WAL');
+
+// Crea tabella utenti
+db.exec(`
+  CREATE TABLE IF NOT EXISTS utenti (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_temporanea INTEGER DEFAULT 0,
+    partite_giocate INTEGER DEFAULT 0,
+    partite_vinte INTEGER DEFAULT 0,
+    partite_perse INTEGER DEFAULT 0,
+    punti INTEGER DEFAULT 0,
+    creato_il DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Migrazioni
+try { db.exec('ALTER TABLE utenti ADD COLUMN password_temporanea INTEGER DEFAULT 0'); } catch (e) { /* gia' esiste */ }
+try { db.exec('ALTER TABLE utenti ADD COLUMN tornei_giocati INTEGER DEFAULT 0'); } catch (e) { /* gia' esiste */ }
+try { db.exec('ALTER TABLE utenti ADD COLUMN tornei_vinti INTEGER DEFAULT 0'); } catch (e) { /* gia' esiste */ }
+try { db.exec('ALTER TABLE utenti ADD COLUMN citta TEXT'); } catch (e) { /* gia' esiste */ }
+
+db.exec(`CREATE TABLE IF NOT EXISTS amici (id INTEGER PRIMARY KEY AUTOINCREMENT, utente TEXT NOT NULL, amico TEXT NOT NULL, stato TEXT NOT NULL DEFAULT 'pending', creato_il DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(utente, amico))`);
+
+// Tabelle tornei
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tornei (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT NOT NULL,
+    stato TEXT NOT NULL DEFAULT 'iscrizioni',
+    num_giocatori INTEGER NOT NULL,
+    num_squadre INTEGER NOT NULL,
+    round_corrente TEXT DEFAULT NULL,
+    modalita_vittoria TEXT NOT NULL DEFAULT 'round',
+    valore_vittoria INTEGER NOT NULL DEFAULT 3,
+    squadra_vincitrice INTEGER DEFAULT NULL,
+    controllo_ip INTEGER DEFAULT 1,
+    creato_il DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+try { db.exec('ALTER TABLE tornei ADD COLUMN controllo_ip INTEGER DEFAULT 1'); } catch (e) { /* gia' esiste */ }
+try { db.exec('ALTER TABLE tornei ADD COLUMN round_corrente TEXT DEFAULT NULL'); } catch (e) { /* gia' esiste */ }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tornei_squadre (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    torneo_id INTEGER NOT NULL REFERENCES tornei(id),
+    numero_squadra INTEGER NOT NULL,
+    nome_squadra TEXT DEFAULT NULL,
+    UNIQUE(torneo_id, numero_squadra)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tornei_giocatori (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    torneo_id INTEGER NOT NULL REFERENCES tornei(id),
+    squadra_id INTEGER NOT NULL REFERENCES tornei_squadre(id),
+    nome_utente TEXT NOT NULL,
+    ip TEXT DEFAULT NULL,
+    UNIQUE(torneo_id, nome_utente)
+  )
+`);
+
+try { db.exec('ALTER TABLE tornei_giocatori ADD COLUMN ip TEXT DEFAULT NULL'); } catch (e) { /* gia' esiste */ }
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS tornei_partite (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    torneo_id INTEGER NOT NULL REFERENCES tornei(id),
+    round TEXT NOT NULL,
+    posizione INTEGER NOT NULL,
+    squadra_a INTEGER DEFAULT NULL REFERENCES tornei_squadre(id),
+    squadra_b INTEGER DEFAULT NULL REFERENCES tornei_squadre(id),
+    stato TEXT NOT NULL DEFAULT 'attesa',
+    codice_stanza TEXT DEFAULT NULL,
+    vincitore INTEGER DEFAULT NULL REFERENCES tornei_squadre(id),
+    punti_a INTEGER DEFAULT 0,
+    punti_b INTEGER DEFAULT 0,
+    UNIQUE(torneo_id, round, posizione)
+  )
+`);
+
+
+const stmts = {
+  registra: db.prepare('INSERT INTO utenti (nome, email, password_hash, citta) VALUES (?, ?, ?, ?)'),
+  trovaPerNome: db.prepare('SELECT * FROM utenti WHERE nome = ?'),
+  trovaPerEmail: db.prepare('SELECT * FROM utenti WHERE email = ?'),
+  aggiornaStats: db.prepare(`
+    UPDATE utenti SET
+      partite_giocate = partite_giocate + ?,
+      partite_vinte = partite_vinte + ?,
+      partite_perse = partite_perse + ?,
+      punti = punti + ?
+    WHERE nome = ?
+  `),
+  getStats: db.prepare('SELECT nome, partite_giocate, partite_vinte, partite_perse, punti, tornei_giocati, tornei_vinti FROM utenti WHERE nome = ?'),
+  getClassifica: db.prepare('SELECT nome, partite_giocate, partite_vinte, partite_perse, punti, tornei_giocati, tornei_vinti FROM utenti ORDER BY punti DESC LIMIT 20')
+};
+
+function registra(nome, email, password, citta) {
+  nome = nome.trim();
+  email = email.trim().toLowerCase();
+  citta = (citta || '').trim();
+  if (!nome || nome.length < 2 || nome.length > 20) return { ok: false, errore: 'Nome deve essere tra 2 e 20 caratteri' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, errore: 'Email non valida' };
+  if (password.length < 4) return { ok: false, errore: 'Password deve avere almeno 4 caratteri' };
+  if (!citta || citta.length < 2 || citta.length > 50) return { ok: false, errore: 'Città deve essere tra 2 e 50 caratteri' };
+
+  if (stmts.trovaPerNome.get(nome)) return { ok: false, errore: 'Nome già in uso' };
+  if (stmts.trovaPerEmail.get(email)) return { ok: false, errore: 'Email già registrata' };
+
+  const hash = bcrypt.hashSync(password, 10);
+  stmts.registra.run(nome, email, hash, citta);
+  return { ok: true };
+}
+
+function login(identificativo, password) {
+  identificativo = (identificativo || '').trim();
+  let utente = stmts.trovaPerNome.get(identificativo);
+  if (!utente && identificativo.includes('@')) {
+    utente = stmts.trovaPerEmail.get(identificativo.toLowerCase());
+  }
+  if (!utente) return { ok: false, errore: 'Utente non trovato' };
+  if (!bcrypt.compareSync(password, utente.password_hash)) return { ok: false, errore: 'Password errata' };
+  return { ok: true, nome: utente.nome, admin: utente.email === ADMIN_EMAIL, passwordTemporanea: !!utente.password_temporanea };
+}
+
+function aggiornaStats(nome, { giocate = 0, vinte = 0, perse = 0, punti = 0 }) {
+  stmts.aggiornaStats.run(giocate, vinte, perse, punti, nome);
+}
+
+function getStats(nome) {
+  return stmts.getStats.get(nome) || null;
+}
+
+function getClassifica() {
+  return stmts.getClassifica.all();
+}
+
+const ADMIN_EMAIL = 'castellana.valerio@gmail.com';
+
+function isAdmin(nome) {
+  const u = stmts.trovaPerNome.get(nome);
+  return u && u.email === ADMIN_EMAIL;
+}
+
+function getTuttiUtenti() {
+  return db.prepare('SELECT nome, email, partite_giocate, partite_vinte, partite_perse, punti, creato_il FROM utenti ORDER BY nome').all();
+}
+
+function resetPassword(nome) {
+  const utente = stmts.trovaPerNome.get(nome);
+  if (!utente) return { ok: false, errore: 'Utente non trovato' };
+  // Genera password temporanea di 6 caratteri
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let tempPwd = '';
+  for (let i = 0; i < 6; i++) tempPwd += chars[Math.floor(Math.random() * chars.length)];
+  const hash = bcrypt.hashSync(tempPwd, 10);
+  db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 1 WHERE nome = ?').run(hash, nome);
+  return { ok: true, passwordTemporanea: tempPwd };
+}
+
+function cambiaPassword(nome, nuovaPassword) {
+  if (nuovaPassword.length < 4) return { ok: false, errore: 'Password deve avere almeno 4 caratteri' };
+  const hash = bcrypt.hashSync(nuovaPassword, 10);
+  db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 0 WHERE nome = ?').run(hash, nome);
+  return { ok: true };
+}
+
+function cancellaUtente(nome) {
+  const utente = stmts.trovaPerNome.get(nome);
+  if (!utente) return { ok: false, errore: 'Utente non trovato' };
+  if (utente.email === ADMIN_EMAIL) return { ok: false, errore: 'Non puoi cancellare l\'admin' };
+  db.prepare('DELETE FROM utenti WHERE nome = ?').run(nome);
+  return { ok: true };
+}
+
+function richiediAmicizia(utente, amico) {
+  if (utente === amico) return { ok: false, errore: 'Non puoi aggiungere te stesso' };
+  if (!stmts.trovaPerNome.get(amico)) return { ok: false, errore: 'Utente non trovato' };
+  if (db.prepare('SELECT 1 FROM amici WHERE utente = ? AND amico = ?').get(utente, amico)) return { ok: false, errore: 'Gia\' inviata o gia\' amici' };
+  const altra = db.prepare('SELECT id FROM amici WHERE utente = ? AND amico = ? AND stato = ?').get(amico, utente, 'pending');
+  if (altra) { db.prepare('UPDATE amici SET stato = ? WHERE id = ?').run('accepted', altra.id); db.prepare('INSERT INTO amici (utente, amico, stato) VALUES (?, ?, ?)').run(utente, amico, 'accepted'); return { ok: true, accettato: true }; }
+  db.prepare('INSERT INTO amici (utente, amico, stato) VALUES (?, ?, ?)').run(utente, amico, 'pending');
+  return { ok: true };
+}
+function accettaAmicizia(utente, amico) { const r = db.prepare('SELECT id FROM amici WHERE utente = ? AND amico = ? AND stato = ?').get(amico, utente, 'pending'); if (!r) return { ok: false, errore: 'Richiesta non trovata' }; db.prepare('UPDATE amici SET stato = ? WHERE id = ?').run('accepted', r.id); db.prepare('INSERT OR IGNORE INTO amici (utente, amico, stato) VALUES (?, ?, ?)').run(utente, amico, 'accepted'); return { ok: true }; }
+function rifiutaAmicizia(utente, amico) { db.prepare('DELETE FROM amici WHERE utente = ? AND amico = ?').run(amico, utente); return { ok: true }; }
+function rimuoviAmico(utente, amico) { db.prepare('DELETE FROM amici WHERE (utente = ? AND amico = ?) OR (utente = ? AND amico = ?)').run(utente, amico, amico, utente); return { ok: true }; }
+function getAmici(utente) { return db.prepare('SELECT amico as nome FROM amici WHERE utente = ? AND stato = ? ORDER BY amico').all(utente, 'accepted'); }
+function getRichiesteAmicizia(utente) { return db.prepare('SELECT utente as nome FROM amici WHERE amico = ? AND stato = ? ORDER BY creato_il DESC').all(utente, 'pending'); }
+
+module.exports = { registra, login, aggiornaStats, getStats, getClassifica, isAdmin, getTuttiUtenti, resetPassword, cambiaPassword, cancellaUtente, richiediAmicizia, accettaAmicizia, rifiutaAmicizia, rimuoviAmico, getAmici, getRichiesteAmicizia };
