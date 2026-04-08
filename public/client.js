@@ -803,6 +803,10 @@ socket.on('unitoAStanza', ({ codice, nome, tipoGioco }) => {
 
 socket.on('errore', (messaggio) => {
   mostraMessaggio(messaggio, 'errore');
+  if (typeof messaggio === 'string' && /stanza non trovata/i.test(messaggio)) {
+    setSessione(null);
+    if (getUtenteLoggato()) entraInLobby();
+  }
 });
 
 socket.on('giocatoreUnito', ({ giocatori, maxGiocatori }) => {
@@ -1348,7 +1352,26 @@ socket.on('torneoAnnullato', () => { torneoCorrenteId = null; if (schermate.torn
 // Auto-login
 (async function() {
   const s = getUtenteLoggato();
-  if (s) { utenteLoggato = s; try { const d = await (await fetch(`/api/isadmin/${encodeURIComponent(s)}`)).json(); isAdmin = d.ok && d.admin; } catch {} entraInLobby(); }
+  if (s) {
+    utenteLoggato = s;
+    try { const d = await (await fetch(`/api/isadmin/${encodeURIComponent(s)}`)).json(); isAdmin = d.ok && d.admin; } catch {}
+    // Se c'e' una sessione di partita attiva (refresh in partita), non andare in lobby:
+    // il socket si riconnette e il server invia 'partitaIniziata' che apre la schermata gioco.
+    const sess = getSessione();
+    if (sess && sess.codice) {
+      mostraSchermata('attesa');
+      const msgAtt = document.getElementById('attesaMessaggio');
+      if (msgAtt) msgAtt.textContent = 'Riconnessione in corso...';
+      setTimeout(() => {
+        if (document.getElementById('attesa').classList.contains('attiva')) {
+          setSessione(null);
+          entraInLobby();
+        }
+      }, 5000);
+    } else {
+      entraInLobby();
+    }
+  }
 })();
 
 socket.on('connect', () => {
