@@ -1,6 +1,10 @@
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const path = require('path');
+
+// Cost factor bcrypt: 12 = +sicurezza (~250ms per hash su hw moderno)
+const BCRYPT_COST = 12;
 
 const db = new Database(path.join(__dirname, 'scopa.db'));
 
@@ -120,7 +124,7 @@ function registra(nome, email, password, citta) {
   if (stmts.trovaPerNome.get(nome)) return { ok: false, errore: 'Nome già in uso' };
   if (stmts.trovaPerEmail.get(email)) return { ok: false, errore: 'Email già registrata' };
 
-  const hash = bcrypt.hashSync(password, 10);
+  const hash = bcrypt.hashSync(password, BCRYPT_COST);
   stmts.registra.run(nome, email, hash, citta);
   return { ok: true };
 }
@@ -133,8 +137,36 @@ function login(identificativo, password) {
   }
   if (!utente) return { ok: false, errore: 'Utente non trovato' };
   if (!bcrypt.compareSync(password, utente.password_hash)) return { ok: false, errore: 'Password errata' };
-  return { ok: true, nome: utente.nome, admin: utente.email === ADMIN_EMAIL, passwordTemporanea: !!utente.password_temporanea };
+  const token = creaSessione(utente.nome);
+  return { ok: true, nome: utente.nome, token, admin: utente.email === ADMIN_EMAIL, passwordTemporanea: !!utente.password_temporanea };
 }
+
+// --- Sessioni in-memory ---
+const sessioni = new Map(); // token -> { nome, creato, ultimoUso }
+const SESSIONE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 gg
+
+function creaSessione(nome) {
+  const token = crypto.randomBytes(24).toString('base64url');
+  const ora = Date.now();
+  sessioni.set(token, { nome, creato: ora, ultimoUso: ora });
+  return token;
+}
+function validaSessione(token) {
+  if (!token) return null;
+  const s = sessioni.get(token);
+  if (!s) return null;
+  if (Date.now() - s.ultimoUso > SESSIONE_TTL_MS) { sessioni.delete(token); return null; }
+  s.ultimoUso = Date.now();
+  return s.nome;
+}
+function distruggiSessione(token) { sessioni.delete(token); }
+function distruggiSessioniPerNome(nome) {
+  for (const [tok, s] of sessioni) if (s.nome === nome) sessioni.delete(tok);
+}
+setInterval(() => {
+  const ora = Date.now();
+  for (const [tok, s] of sessioni) if (ora - s.ultimoUso > SESSIONE_TTL_MS) sessioni.delete(tok);
+}, 60 * 60 * 1000).unref();
 
 function aggiornaStats(nome, { giocate = 0, vinte = 0, perse = 0, punti = 0 }) {
   stmts.aggiornaStats.run(giocate, vinte, perse, punti, nome);
@@ -166,15 +198,17 @@ function resetPassword(nome) {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let tempPwd = '';
   for (let i = 0; i < 6; i++) tempPwd += chars[Math.floor(Math.random() * chars.length)];
-  const hash = bcrypt.hashSync(tempPwd, 10);
+  const hash = bcrypt.hashSync(tempPwd, BCRYPT_COST);
   db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 1 WHERE nome = ?').run(hash, nome);
+  distruggiSessioniPerNome(nome);
   return { ok: true, passwordTemporanea: tempPwd };
 }
 
 function cambiaPassword(nome, nuovaPassword) {
   if (nuovaPassword.length < 4) return { ok: false, errore: 'Password deve avere almeno 4 caratteri' };
-  const hash = bcrypt.hashSync(nuovaPassword, 10);
+  const hash = bcrypt.hashSync(nuovaPassword, BCRYPT_COST);
   db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 0 WHERE nome = ?').run(hash, nome);
+  distruggiSessioniPerNome(nome);
   return { ok: true };
 }
 
@@ -183,7 +217,19 @@ function cancellaUtente(nome) {
   if (!utente) return { ok: false, errore: 'Utente non trovato' };
   if (utente.email === ADMIN_EMAIL) return { ok: false, errore: 'Non puoi cancellare l\'admin' };
   db.prepare('DELETE FROM utenti WHERE nome = ?').run(nome);
+  distruggiSessioniPerNome(nome);
   return { ok: true };
+}
+
+// Verifica password senza creare sessione (per conferma operazioni sensibili)
+function verificaPassword(nome, password) {
+  const u = stmts.trovaPerNome.get(nome);
+  if (!u) return false;
+  return bcrypt.compareSync(password, u.password_hash);
+}
+function haPasswordTemporanea(nome) {
+  const u = stmts.trovaPerNome.get(nome);
+  return !!(u && u.password_temporanea);
 }
 
 function richiediAmicizia(utente, amico) {
@@ -201,4 +247,4 @@ function rimuoviAmico(utente, amico) { db.prepare('DELETE FROM amici WHERE (uten
 function getAmici(utente) { return db.prepare('SELECT amico as nome FROM amici WHERE utente = ? AND stato = ? ORDER BY amico').all(utente, 'accepted'); }
 function getRichiesteAmicizia(utente) { return db.prepare('SELECT utente as nome FROM amici WHERE amico = ? AND stato = ? ORDER BY creato_il DESC').all(utente, 'pending'); }
 
-module.exports = { registra, login, aggiornaStats, getStats, getClassifica, isAdmin, getTuttiUtenti, resetPassword, cambiaPassword, cancellaUtente, richiediAmicizia, accettaAmicizia, rifiutaAmicizia, rimuoviAmico, getAmici, getRichiesteAmicizia };
+module.exports = { db, registra, login, aggiornaStats, getStats, getClassifica, isAdmin, getTuttiUtenti, resetPassword, cambiaPassword, cancellaUtente, richiediAmicizia, accettaAmicizia, rifiutaAmicizia, rimuoviAmico, getAmici, getRichiesteAmicizia, creaSessione, validaSessione, distruggiSessione, distruggiSessioniPerNome, verificaPassword, haPasswordTemporanea };

@@ -278,13 +278,19 @@ class ScopaMaresciallo {
       return { valida: false, errore: 'Carte da prendere non valide' };
     }
 
-    // Caso speciale: l'asso va sempre nelle prese (anche se tavolo vuoto)
+    // Caso speciale: l'asso va sempre nelle prese (anche se tavolo vuoto).
+    // Edge case (doppio mazzo): il giocatore puo' avere 2 assi nella stessa mano.
+    // Ogni asso viene gestito separatamente nel proprio turno — il primo svuota
+    // il tavolo (o si posa solo se tavolo vuoto), il secondo opera sullo stato
+    // del tavolo in quel momento (che puo' essere di nuovo non vuoto grazie
+    // alle carte giocate dagli avversari in mezzo).
     if (carta.isAsso()) {
       if (this.tavolo.length === 0) {
-        // Asso con tavolo vuoto: va nelle prese, non è scopa
+        // Asso con tavolo vuoto: va nelle prese (tramite assoSolo), non e' scopa.
         return { valida: true, tipo: 'presa', scopa: false, assoSolo: true };
       }
-      // Asso con carte a terra: prende tutto, ma NON è scopa
+      // Asso con carte a terra: prende TUTTO il tavolo, mai scopa (regola).
+      // Il client DEVE inviare cartePresaIds con tutte le carte correnti del tavolo.
       if (cartePresa.length !== this.tavolo.length) {
         return { valida: false, errore: 'L\'asso deve prendere tutte le carte' };
       }
@@ -644,51 +650,46 @@ class ScopaMaresciallo {
   }
 
   calcolaPrimiera(carte) {
+    // Primiera: si sommano i punti primiera delle migliori carte per ogni seme.
+    // REGOLA: per avere primiera VALIDA serve almeno una carta per ciascuno dei 4 semi.
+    // Se manca anche un solo seme, la primiera della squadra vale 0 (niente confronto).
+    // E' una regola tradizionale del Maresciallo: meglio nessuna primiera che parziale.
     const migliorePerSeme = {};
 
     for (const seme of SEMI) {
       const carteSeme = carte.filter(c => c.seme === seme);
       if (carteSeme.length > 0) {
-        // Prendi il valore primiera più alto per questo seme
         migliorePerSeme[seme] = Math.max(...carteSeme.map(c => PRIMIERA_VALORI[c.valore]));
       }
     }
 
-    // Primiera valida solo se hai almeno una carta per seme
     if (Object.keys(migliorePerSeme).length < 4) return 0;
 
     return Object.values(migliorePerSeme).reduce((a, b) => a + b, 0);
   }
 
   calcolaNapola(carte) {
+    // Napola: sequenza 1-2-3-...-N di denari. Base 3pt per 1-2-3, +1pt per ogni carta
+    // consecutiva successiva fino al 10. Max 2 napole (valido in doppio mazzo, dove
+    // ci sono 2 copie di ogni denaro: la prima napola usa una copia di 1,2,3,...,
+    // la seconda richiede un'altra copia disponibile per ogni valore).
     const denari = carte.filter(c => c.seme === 'denari');
     let puntiTotali = 0;
 
-    // Conta quante volte possiamo fare la napola (max 2)
-    for (let volta = 0; volta < 2; volta++) {
-      // Conta le carte disponibili per questa volta
-      const conteggio = {};
-      for (const c of denari) {
-        conteggio[c.valore] = (conteggio[c.valore] || 0) + 1;
-      }
+    // conteggio[v] = quante copie di denari di valore v (carteSingole/multiple)
+    const conteggio = {};
+    for (const c of denari) conteggio[c.valore] = (conteggio[c.valore] || 0) + 1;
 
-      // Verifica se abbiamo 1, 2, 3 di denari
+    for (let volta = 0; volta < 2; volta++) {
+      // volta=0 richiede conteggio>=1; volta=1 richiede conteggio>=2 (seconda copia).
       if ((conteggio[1] || 0) > volta &&
           (conteggio[2] || 0) > volta &&
           (conteggio[3] || 0) > volta) {
-
-        // Base: 3 punti per 1,2,3
         let puntiNapola = 3;
-
-        // Aggiungi 1 punto per ogni carta successiva
         for (let v = 4; v <= 10; v++) {
-          if ((conteggio[v] || 0) > volta) {
-            puntiNapola++;
-          } else {
-            break;
-          }
+          if ((conteggio[v] || 0) > volta) puntiNapola++;
+          else break;
         }
-
         puntiTotali += puntiNapola;
       }
     }

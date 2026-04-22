@@ -122,10 +122,32 @@ window.addEventListener('popstate', () => { history.pushState(null, '', location
 
 // Utente loggato
 let utenteLoggato = null;
+let tokenSessione = null;
 let isAdmin = false;
 function getUtenteLoggato() { try { return JSON.parse(localStorage.getItem('utenteLoggato')); } catch { return null; } }
-function setUtenteLoggato(nome) { if (nome) { utenteLoggato = nome; localStorage.setItem('utenteLoggato', JSON.stringify(nome)); } else { utenteLoggato = null; localStorage.removeItem('utenteLoggato'); } }
+function getTokenSessione() { return localStorage.getItem('tokenSessione') || null; }
+function setUtenteLoggato(nome, token) {
+  if (nome) {
+    utenteLoggato = nome;
+    localStorage.setItem('utenteLoggato', JSON.stringify(nome));
+    if (token) { tokenSessione = token; localStorage.setItem('tokenSessione', token); }
+  } else {
+    utenteLoggato = null;
+    tokenSessione = null;
+    localStorage.removeItem('utenteLoggato');
+    localStorage.removeItem('tokenSessione');
+  }
+}
 function getNomeUtente() { return utenteLoggato || ''; }
+
+// Wrapper fetch che aggiunge il token di sessione nell'Authorization header.
+async function fetchAuth(url, opts = {}) {
+  const headers = { ...(opts.headers || {}) };
+  const tok = tokenSessione || getTokenSessione();
+  if (tok) headers['Authorization'] = `Bearer ${tok}`;
+  if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  return fetch(url, { ...opts, headers });
+}
 
 // Mapping per i nomi dei file delle carte
 const NOMI_VALORI = {
@@ -627,7 +649,7 @@ document.getElementById('btnCreaStanza').addEventListener('click', () => {
   numGiocatoriAttesa = numGiocatori;
   tipoGiocoCorrente = tipoGioco;
   setSessione({ nome, tipoGioco });
-  socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto });
+  socket.emit('creaStanza', { puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto });
 });
 
 document.getElementById('btnCreaVsBot')?.addEventListener('click', () => {
@@ -640,7 +662,7 @@ document.getElementById('btnCreaVsBot')?.addEventListener('click', () => {
   numGiocatoriAttesa = 2;
   tipoGiocoCorrente = tipoGioco;
   setSessione({ nome, tipoGioco });
-  socket.emit('creaStanza', { nome, puntiVittoria, numGiocatori: 2, tipoGioco, assoPigliaTutto, vsBot: true });
+  socket.emit('creaStanza', { puntiVittoria, numGiocatori: 2, tipoGioco, assoPigliaTutto, vsBot: true });
 });
 
 // Stato tipo gioco corrente (impostato dal server in stanzaCreata/unitoAStanza)
@@ -688,7 +710,7 @@ document.getElementById('btnUnisciti').addEventListener('click', () => {
   }
 
   setSessione({ codice, nome });
-  socket.emit('uniscitiStanza', { codice, nome });
+  socket.emit('uniscitiStanza', { codice });
 });
 
 // Mostra stanze disponibili (modal stile burraco)
@@ -735,7 +757,7 @@ socket.on('stanzeDisponibili', (stanze) => {
       if (!nome) { mostraMessaggio('Devi essere loggato', 'errore'); return; }
       tipoGiocoCorrente = tipo;
       setSessione({ nome, codice: stanza.codice, tipoGioco: tipo });
-      socket.emit('uniscitiStanza', { codice: stanza.codice, nome });
+      socket.emit('uniscitiStanza', { codice: stanza.codice });
       chiudiModalStanze();
     });
     lista.appendChild(row);
@@ -1116,21 +1138,21 @@ function caricaAmiciDebounced() { if (caricaAmiciTimer) clearTimeout(caricaAmici
 async function caricaAmici() {
   const nome = getNomeUtente(); if (!nome) return;
   try {
-    const d = await (await fetch(`/api/amici/${encodeURIComponent(nome)}`)).json(); if (!d.ok) return;
-    const dOnline = await (await fetch(`/api/amici/${encodeURIComponent(nome)}/online`)).json();
+    const d = await (await fetchAuth(`/api/amici/${encodeURIComponent(nome)}`)).json(); if (!d.ok) return;
+    const dOnline = await (await fetchAuth(`/api/amici/${encodeURIComponent(nome)}/online`)).json();
     const online = dOnline.ok ? dOnline.online : {};
     document.getElementById('amiciCount').textContent = `(${d.amici.length})`;
     const elRich = document.getElementById('amiciRichieste');
     elRich.innerHTML = d.richieste.length > 0 ? '<h4 class="amici-titolo">Richieste</h4>' + d.richieste.map(r => `<div class="amico-row pending"><span class="amico-nome">${r.nome}</span><button class="btn-amico-accetta" data-nome="${r.nome}">Accetta</button><button class="btn-amico-rifiuta" data-nome="${r.nome}">Rifiuta</button></div>`).join('') : '';
     const elLista = document.getElementById('amiciLista');
     elLista.innerHTML = d.amici.length === 0 ? '<p class="amici-vuoto">Non hai ancora amici</p>' : d.amici.map(a => { const s=online[a.nome]||{online:false}; const dot=s.online?'<span class="amico-online"></span>':'<span class="amico-offline"></span>'; const stz=s.stanza?` <span class="amico-stanza">in ${s.stanza}</span>`:''; const inv=s.online&&getSessione()?.codice?`<button class="btn-amico-invita" data-nome="${a.nome}">Invita</button>`:''; return `<div class="amico-row">${dot}<span class="amico-nome">${a.nome}</span>${stz}${inv}<button class="btn-amico-rimuovi" data-nome="${a.nome}">×</button></div>`; }).join('');
-    elRich.querySelectorAll('.btn-amico-accetta').forEach(b => b.addEventListener('click', async (e) => { await fetch('/api/amici/accetta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utente:nome,amico:e.target.dataset.nome})}); caricaAmici(); }));
-    elRich.querySelectorAll('.btn-amico-rifiuta').forEach(b => b.addEventListener('click', async (e) => { await fetch('/api/amici/rifiuta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utente:nome,amico:e.target.dataset.nome})}); caricaAmici(); }));
-    elLista.querySelectorAll('.btn-amico-rimuovi').forEach(b => b.addEventListener('click', async (e) => { if(!confirm(`Rimuovere ${e.target.dataset.nome}?`)) return; await fetch('/api/amici/rimuovi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utente:nome,amico:e.target.dataset.nome})}); caricaAmici(); }));
+    elRich.querySelectorAll('.btn-amico-accetta').forEach(b => b.addEventListener('click', async (e) => { await fetchAuth('/api/amici/accetta',{method:'POST',body:JSON.stringify({amico:e.target.dataset.nome})}); caricaAmici(); }));
+    elRich.querySelectorAll('.btn-amico-rifiuta').forEach(b => b.addEventListener('click', async (e) => { await fetchAuth('/api/amici/rifiuta',{method:'POST',body:JSON.stringify({amico:e.target.dataset.nome})}); caricaAmici(); }));
+    elLista.querySelectorAll('.btn-amico-rimuovi').forEach(b => b.addEventListener('click', async (e) => { if(!confirm(`Rimuovere ${e.target.dataset.nome}?`)) return; await fetchAuth('/api/amici/rimuovi',{method:'POST',body:JSON.stringify({amico:e.target.dataset.nome})}); caricaAmici(); }));
     elLista.querySelectorAll('.btn-amico-invita').forEach(b => b.addEventListener('click', (e) => { const c=getSessione()?.codice; if(!c){alert('Devi essere in una stanza');return;} socket.emit('invitaAmico',{amico:e.target.dataset.nome,codiceStanza:c}); mostraMessaggio(`Invito inviato a ${e.target.dataset.nome}`,'successo'); }));
   } catch (e) {}
 }
-document.getElementById('btnAggiungiAmico')?.addEventListener('click', async () => { const inp=document.getElementById('amiciNomeInput'); const a=inp.value.trim(); if(!a) return; const r=await(await fetch('/api/amici/richiedi',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({utente:getNomeUtente(),amico:a})})).json(); if(!r.ok){mostraMessaggio(r.errore,'errore');return;} inp.value=''; mostraMessaggio(r.accettato?'Ora siete amici!':'Richiesta inviata','successo'); caricaAmici(); });
+document.getElementById('btnAggiungiAmico')?.addEventListener('click', async () => { const inp=document.getElementById('amiciNomeInput'); const a=inp.value.trim(); if(!a) return; const r=await(await fetchAuth('/api/amici/richiedi',{method:'POST',body:JSON.stringify({amico:a})})).json(); if(!r.ok){mostraMessaggio(r.errore,'errore');return;} inp.value=''; mostraMessaggio(r.accettato?'Ora siete amici!':'Richiesta inviata','successo'); caricaAmici(); });
 document.getElementById('toggleAmici')?.addEventListener('click', () => document.querySelector('.sezione-amici').classList.toggle('chiusa'));
 socket.on('richiestaAmicizia', ({ da }) => { mostraMessaggio(`${da} ti ha inviato una richiesta`,'info'); if(Notification.permission==='granted'&&document.hidden) try{new Notification('Scopa Maresciallo',{body:`${da} ti ha inviato una richiesta`});}catch(e){} caricaAmiciDebounced(); });
 socket.on('amiciziaAccettata', ({ da }) => { mostraMessaggio(`${da} ha accettato!`,'successo'); caricaAmiciDebounced(); });
@@ -1156,7 +1178,7 @@ document.getElementById('btnCambiaPwd').addEventListener('click', async () => {
   const n = document.getElementById('nuovaPassword').value, c = document.getElementById('confermaNuovaPassword').value;
   if (!n || !c) { mostraMessaggioAuth('Compila tutti i campi'); return; }
   if (n !== c) { mostraMessaggioAuth('Le password non coincidono'); return; }
-  const r = await (await fetch('/api/cambiapassword', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: getNomeUtente(), nuovaPassword: n }) })).json();
+  const r = await (await fetchAuth('/api/cambiapassword', { method: 'POST', body: JSON.stringify({ nuovaPassword: n }) })).json();
   if (!r.ok) { mostraMessaggioAuth(r.errore); return; }
   document.getElementById('authCambioPwd').classList.add('nascosto'); entraInLobby();
 });
@@ -1167,7 +1189,7 @@ document.getElementById('btnLogin').addEventListener('click', async () => {
   if (!nome || !pwd) { mostraMessaggioAuth('Compila tutti i campi'); return; }
   const d = await (await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome, password: pwd }) })).json();
   if (!d.ok) { mostraMessaggioAuth(d.errore); return; }
-  isAdmin = d.admin || false; setUtenteLoggato(d.nome);
+  isAdmin = d.admin || false; setUtenteLoggato(d.nome, d.token);
   if (d.passwordTemporanea) mostraCambioPassword(); else entraInLobby();
 });
 document.getElementById('btnRegistra').addEventListener('click', async () => {
@@ -1183,14 +1205,14 @@ document.getElementById('btnRegistra').addEventListener('click', async () => {
 document.getElementById('btnEliminaAccount').addEventListener('click', async () => {
   if (!confirm('Eliminare il tuo account? Tutti i dati verranno cancellati.')) return;
   if (!confirm('Confermi? Azione irreversibile.')) return;
-  const d = await (await fetch('/api/eliminaaccount', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nome: getNomeUtente() }) })).json();
+  const d = await (await fetchAuth('/api/eliminaaccount', { method: 'POST', body: JSON.stringify({}) })).json();
   if (d.ok) { setUtenteLoggato(null); setSessione(null); mostraSchermata('auth'); mostraMessaggioAuth('Account eliminato', 'successo'); }
 });
 document.getElementById('btnLogout').addEventListener('click', () => { setUtenteLoggato(null); setSessione(null); mostraSchermata('auth'); });
 
 async function entraInLobby() {
   document.getElementById('userNome').textContent = getNomeUtente();
-  socket.emit('autenticato', { nome: getNomeUtente() });
+  socket.emit('autenticato', { nome: getNomeUtente(), token: getTokenSessione() });
   try { const d = await (await fetch(`/api/stats/${encodeURIComponent(getNomeUtente())}`)).json(); if (d.ok) { const s = d.stats; const t = s.tornei_giocati > 0 ? ` | Tornei: ${s.tornei_vinti}/${s.tornei_giocati}` : ''; document.getElementById('userStats').innerHTML = `${s.partite_giocate} partite | ${s.partite_vinte}V ${s.partite_perse}P | ${s.punti} pt${t}`; } } catch {}
   if (isAdmin) document.getElementById('btnAdmin').classList.remove('nascosto'); else { document.getElementById('btnAdmin').classList.add('nascosto'); document.getElementById('pannelloAdmin').classList.add('nascosto'); }
   caricaClassifica(); aggiornaIconaNotifiche(); caricaAmici(); mostraSchermata('lobby');
@@ -1209,17 +1231,17 @@ document.getElementById('toggleClassifica')?.addEventListener('click', () => doc
 document.getElementById('btnAdmin').addEventListener('click', () => { const p = document.getElementById('pannelloAdmin'); if (p.classList.contains('nascosto')) { p.classList.remove('nascosto'); caricaDatiAdmin(); } else p.classList.add('nascosto'); });
 document.getElementById('btnRefreshAdmin').addEventListener('click', caricaDatiAdmin);
 async function caricaDatiAdmin() {
-  try { const d = await (await fetch(`/api/admin/online?nome=${encodeURIComponent(getNomeUtente())}`)).json(); if (!d.ok) return;
+  try { const d = await (await fetchAuth('/api/admin/online')).json(); if (!d.ok) return;
     document.getElementById('adminOnlineCount').textContent = d.utentiOnline.length;
     document.getElementById('adminUtentiOnline').innerHTML = d.utentiOnline.length === 0 ? '<div class="admin-lista-vuota">Nessuno</div>' : d.utentiOnline.map(u => `<div class="admin-utente"><span class="nome">${u.nome}</span><span class="admin-ip">${u.ip||'?'}</span><span class="stato ${u.stanza?'in-stanza':''}">${u.stanza?'Stanza '+u.stanza:'Lobby'}</span></div>`).join('');
     document.getElementById('adminStanzeCount').textContent = d.stanze.length;
     document.getElementById('adminStanze').innerHTML = d.stanze.length === 0 ? '<div class="admin-lista-vuota">Nessuna</div>' : d.stanze.map(s => `<div class="admin-stanza"><span>${s.codice}</span> <span>${s.stato}</span> <span>${s.giocatori.map(g=>g.nome).join(', ')}</span></div>`).join('');
   } catch {}
-  try { const d = await (await fetch(`/api/admin/utenti?nome=${encodeURIComponent(getNomeUtente())}`)).json(); if (!d.ok) return;
+  try { const d = await (await fetchAuth('/api/admin/utenti')).json(); if (!d.ok) return;
     const el = document.getElementById('adminUtentiRegistrati'); document.getElementById('adminUtentiCount').textContent = d.utenti.length;
     el.innerHTML = d.utenti.map(u => `<div class="admin-utente"><span class="nome">${u.nome}</span><span class="admin-email">${u.email}</span><button class="btn-reset-pwd" data-nome="${u.nome}">Reset pwd</button><button class="btn-cancella-utente" data-nome="${u.nome}">Cancella</button></div>`).join('');
-    el.querySelectorAll('.btn-reset-pwd').forEach(b => b.addEventListener('click', async (e) => { const n = e.target.dataset.nome; if (!confirm(`Reset password di ${n}?`)) return; const r = await (await fetch('/api/admin/resetpassword', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: getNomeUtente(), nome: n }) })).json(); if (r.ok) alert(`Password: ${r.passwordTemporanea}`); }));
-    el.querySelectorAll('.btn-cancella-utente').forEach(b => b.addEventListener('click', async (e) => { const n = e.target.dataset.nome; if (!confirm(`Cancellare ${n}?`)) return; const r = await (await fetch('/api/admin/cancellautente', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: getNomeUtente(), nome: n }) })).json(); if (r.ok) caricaDatiAdmin(); else alert(r.errore); }));
+    el.querySelectorAll('.btn-reset-pwd').forEach(b => b.addEventListener('click', async (e) => { const n = e.target.dataset.nome; if (!confirm(`Reset password di ${n}?`)) return; const r = await (await fetchAuth('/api/admin/resetpassword', { method: 'POST', body: JSON.stringify({ nome: n }) })).json(); if (r.ok) alert(`Password: ${r.passwordTemporanea}`); }));
+    el.querySelectorAll('.btn-cancella-utente').forEach(b => b.addEventListener('click', async (e) => { const n = e.target.dataset.nome; if (!confirm(`Cancellare ${n}?`)) return; const r = await (await fetchAuth('/api/admin/cancellautente', { method: 'POST', body: JSON.stringify({ nome: n }) })).json(); if (r.ok) caricaDatiAdmin(); else alert(r.errore); }));
   } catch {}
   try { const d = await (await fetch('/api/torneo/attivo')).json(); const el = document.getElementById('adminTorneoAttivo');
     if (d.ok && d.torneo) el.innerHTML = `<div class="admin-torneo-info">Attivo: <strong>${d.torneo.nome}</strong> (${d.torneo.stato})</div><button class="btn-reset-pwd" onclick="annullaTorneoFn(${d.torneo.id})">Annulla</button>`;
@@ -1272,10 +1294,10 @@ document.getElementById('btnCreaTorneo')?.addEventListener('click', async () => 
   const [mod, val] = document.getElementById('adminTorneoModalita').value.split('_');
   const ip = document.getElementById('adminTorneoIp').checked;
   const tipoGioco = document.getElementById('adminTorneoTipo')?.value || 'maresciallo';
-  const d = await (await fetch('/api/admin/torneo/crea', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: getNomeUtente(), nome, numGiocatori: num, modalitaVittoria: mod, valoreVittoria: parseInt(val), controlloIp: ip, tipoGioco }) })).json();
+  const d = await (await fetchAuth('/api/admin/torneo/crea', { method: 'POST', body: JSON.stringify({ nome, numGiocatori: num, modalitaVittoria: mod, valoreVittoria: parseInt(val), controlloIp: ip, tipoGioco }) })).json();
   if (d.ok) { document.getElementById('adminTorneoNome').value = ''; caricaDatiAdmin(); alert('Torneo creato!'); } else alert(d.errore);
 });
-window.annullaTorneoFn = async function(id) { if (!confirm('Annullare?')) return; await fetch('/api/admin/torneo/annulla', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: getNomeUtente(), torneoId: id }) }); caricaDatiAdmin(); };
+window.annullaTorneoFn = async function(id) { if (!confirm('Annullare?')) return; await fetchAuth('/api/admin/torneo/annulla', { method: 'POST', body: JSON.stringify({ torneoId: id }) }); caricaDatiAdmin(); };
 
 // --- TORNEO ---
 let torneoCorrenteId = null;
@@ -1308,8 +1330,8 @@ async function renderIscrizioni(t) {
   }
   html += `</div>`; c.innerHTML = html;
 }
-window.iscrivitiFnTorneo = async function(id, sq) { const d = await (await fetch('/api/torneo/iscriviti', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ torneoId: id, nome: getNomeUtente(), numeroSquadra: sq }) })).json(); if (!d.ok) mostraMessaggio(d.errore, 'errore'); caricaTorneo(); };
-window.lasciaFnTorneo = async function(id) { await fetch('/api/torneo/lascia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ torneoId: id, nome: getNomeUtente() }) }); caricaTorneo(); };
+window.iscrivitiFnTorneo = async function(id, sq) { const d = await (await fetchAuth('/api/torneo/iscriviti', { method: 'POST', body: JSON.stringify({ torneoId: id, numeroSquadra: sq }) })).json(); if (!d.ok) mostraMessaggio(d.errore, 'errore'); caricaTorneo(); };
+window.lasciaFnTorneo = async function(id) { await fetchAuth('/api/torneo/lascia', { method: 'POST', body: JSON.stringify({ torneoId: id }) }); caricaTorneo(); };
 
 async function caricaTabellone(id) { const d = await (await fetch(`/api/torneo/${id}/tabellone`)).json(); if (!d.ok) return; renderTabellone(d.torneo); mostraSchermata('tabellone'); }
 function renderTabellone(t) {
@@ -1339,13 +1361,13 @@ function renderTabellone(t) {
   c.innerHTML = html;
 }
 function mostraVittoriaTorneo() { document.getElementById('tabelloneContenuto').innerHTML = `<div class="torneo-vittoria"><div class="torneo-vittoria-trofeo">&#127942;</div><h1>Hai vinto il torneo!</h1><p>Congratulazioni!</p><button class="btn-primario" onclick="torneoCorrenteId&&caricaTabellone(torneoCorrenteId)">Tabellone</button><button class="btn-secondario" style="margin-top:10px" onclick="mostraSchermata('lobby')">Lobby</button></div>`; mostraSchermata('tabellone'); }
-window.uniscitiPartitaTorneoFn = function(codice) { partitaTorneoCorrente = true; setSessione({ codice, nome: getNomeUtente() }); socket.emit('uniscitiPartitaTorneo', { codiceStanza: codice, nome: getNomeUtente() }); mostraSchermata('attesa'); };
+window.uniscitiPartitaTorneoFn = function(codice) { partitaTorneoCorrente = true; setSessione({ codice, nome: getNomeUtente() }); socket.emit('uniscitiPartitaTorneo', { codiceStanza: codice }); mostraSchermata('attesa'); };
 
 socket.on('torneoDisponibile', () => {});
 socket.on('torneoIniziato', ({ torneoId }) => { torneoCorrenteId = torneoId; caricaTabellone(torneoId); });
 socket.on('torneoAggiornato', ({ torneoId }) => { if (schermate.tabellone.classList.contains('attiva') && torneoCorrenteId === torneoId) caricaTabellone(torneoId); if (schermate.torneo.classList.contains('attiva') && torneoCorrenteId === torneoId) caricaTorneo(); });
 socket.on('torneoCompletato', ({ torneoId }) => { if (torneoCorrenteId === torneoId) caricaTabellone(torneoId); });
-socket.on('torneoPartitaPronta', ({ torneoId, codiceStanza }) => { torneoCorrenteId = torneoId; partitaTorneoCorrente = true; setSessione({ codice: codiceStanza, nome: getNomeUtente() }); socket.emit('uniscitiPartitaTorneo', { codiceStanza, nome: getNomeUtente() }); mostraSchermata('attesa'); });
+socket.on('torneoPartitaPronta', ({ torneoId, codiceStanza }) => { torneoCorrenteId = torneoId; partitaTorneoCorrente = true; setSessione({ codice: codiceStanza, nome: getNomeUtente() }); socket.emit('uniscitiPartitaTorneo', { codiceStanza }); mostraSchermata('attesa'); });
 socket.on('torneoAnnullato', () => { torneoCorrenteId = null; if (schermate.torneo.classList.contains('attiva') || schermate.tabellone.classList.contains('attiva')) { mostraMessaggio('Torneo annullato', 'errore'); setTimeout(() => mostraSchermata('lobby'), 2000); } });
 
 // Auto-login
@@ -1353,6 +1375,7 @@ socket.on('torneoAnnullato', () => { torneoCorrenteId = null; if (schermate.torn
   const s = getUtenteLoggato();
   if (s) {
     utenteLoggato = s;
+    tokenSessione = getTokenSessione();
     try { const d = await (await fetch(`/api/isadmin/${encodeURIComponent(s)}`)).json(); isAdmin = d.ok && d.admin; } catch {}
     // Se c'e' una sessione di partita attiva (refresh in partita), non andare in lobby:
     // il socket si riconnette e il server invia 'partitaIniziata' che apre la schermata gioco.
@@ -1376,8 +1399,16 @@ socket.on('torneoAnnullato', () => { torneoCorrenteId = null; if (schermate.torn
 socket.on('connect', () => {
   const sess = getSessione();
   if (sess && sess.codice && sess.nome && getUtenteLoggato()) {
-    socket.emit('autenticato', { nome: sess.nome });
-    if (sess.codice.startsWith('T')) socket.emit('uniscitiPartitaTorneo', { codiceStanza: sess.codice, nome: sess.nome });
-    else socket.emit('uniscitiStanza', { codice: sess.codice, nome: sess.nome });
+    socket.emit('autenticato', { nome: sess.nome, token: getTokenSessione() });
+    if (sess.codice.startsWith('T')) socket.emit('uniscitiPartitaTorneo', { codiceStanza: sess.codice });
+    else socket.emit('uniscitiStanza', { codice: sess.codice });
   }
+});
+
+// Sessione server rifiutata (token scaduto/invalido): forza logout
+socket.on('sessioneNonValida', () => {
+  setUtenteLoggato(null);
+  setSessione(null);
+  mostraSchermata('auth');
+  mostraMessaggioAuth('Sessione scaduta, effettua di nuovo il login', 'errore');
 });

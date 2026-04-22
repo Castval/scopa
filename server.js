@@ -27,6 +27,70 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- Autenticazione ---
+// Estrae il nome dall'Authorization: Bearer <token>, o null.
+function autenticaRichiesta(req) {
+  const auth = req.headers['authorization'] || '';
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  if (!m) return null;
+  return db.validaSessione(m[1]);
+}
+function richiediAuth(req, res, next) {
+  const nome = autenticaRichiesta(req);
+  if (!nome) return res.status(401).json({ ok: false, errore: 'Non autenticato' });
+  req.nomeAuth = nome;
+  next();
+}
+function richiediAdmin(req, res, next) {
+  const nome = autenticaRichiesta(req);
+  if (!nome || !db.isAdmin(nome)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+  req.nomeAuth = nome;
+  next();
+}
+
+// --- Rate limiting login (prevenzione brute force) ---
+// Map IP -> { tentativi, bloccatoFino } — in memoria, sliding window semplice.
+const loginTentativi = new Map();
+const LOGIN_MAX_TENTATIVI = 5;
+const LOGIN_FINESTRA_MS = 5 * 60 * 1000; // 5 min
+const LOGIN_BAN_MS = 15 * 60 * 1000; // 15 min
+function ipDaReq(req) {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+}
+function controllaLoginRate(req) {
+  const ip = ipDaReq(req);
+  const ora = Date.now();
+  let info = loginTentativi.get(ip);
+  if (info && info.bloccatoFino && info.bloccatoFino > ora) {
+    return { ok: false, attesaSec: Math.ceil((info.bloccatoFino - ora) / 1000) };
+  }
+  if (!info || ora - info.finestra > LOGIN_FINESTRA_MS) {
+    info = { tentativi: 0, finestra: ora };
+  }
+  return { ok: true, ip, info };
+}
+function registraLoginFallito(ip) {
+  let info = loginTentativi.get(ip) || { tentativi: 0, finestra: Date.now() };
+  info.tentativi++;
+  if (info.tentativi >= LOGIN_MAX_TENTATIVI) {
+    info.bloccatoFino = Date.now() + LOGIN_BAN_MS;
+    console.log(`Login bloccato per IP ${ip} per ${LOGIN_BAN_MS/1000}s (troppi tentativi)`);
+  }
+  loginTentativi.set(ip, info);
+}
+function resetLoginTentativi(ip) {
+  loginTentativi.delete(ip);
+}
+// Pulizia periodica entries scadute
+setInterval(() => {
+  const ora = Date.now();
+  for (const [ip, info] of loginTentativi) {
+    if ((info.bloccatoFino && info.bloccatoFino < ora) || (ora - info.finestra > LOGIN_FINESTRA_MS)) {
+      loginTentativi.delete(ip);
+    }
+  }
+}, 10 * 60 * 1000).unref();
+
 // --- API Auth ---
 app.post('/api/registra', (req, res) => {
   const { nome, email, password, citta } = req.body;
@@ -34,7 +98,14 @@ app.post('/api/registra', (req, res) => {
 });
 app.post('/api/login', (req, res) => {
   const { nome, password } = req.body;
-  res.json(db.login(nome, password));
+  const rate = controllaLoginRate(req);
+  if (!rate.ok) {
+    return res.status(429).json({ ok: false, errore: `Troppi tentativi. Riprova tra ${rate.attesaSec}s.` });
+  }
+  const r = db.login(nome, password);
+  if (!r.ok) registraLoginFallito(rate.ip);
+  else resetLoginTentativi(rate.ip);
+  res.json(r);
 });
 app.get('/api/stats/:nome', (req, res) => {
   const stats = db.getStats(req.params.nome);
@@ -58,9 +129,7 @@ app.get('/health', (req, res) => {
 });
 
 // Metriche dettagliate (riservate admin)
-app.get('/api/admin/metriche', (req, res) => {
-  const nome = req.query.nome;
-  if (!nome || !db.isAdmin(nome)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.get('/api/admin/metriche', richiediAdmin, (req, res) => {
   const mem = process.memoryUsage();
   const load = os.loadavg();
   let stanzeInCorso = 0, stanzeAttesa = 0, stanzeFinite = 0;
@@ -102,24 +171,38 @@ app.get('/api/admin/metriche', (req, res) => {
 app.get('/api/isadmin/:nome', (req, res) => {
   res.json({ ok: true, admin: db.isAdmin(req.params.nome) });
 });
-app.post('/api/cambiapassword', (req, res) => {
-  const { nome, nuovaPassword } = req.body;
-  if (!nome || !nuovaPassword) return res.json({ ok: false, errore: 'Dati mancanti' });
-  res.json(db.cambiaPassword(nome, nuovaPassword));
+app.post('/api/cambiapassword', richiediAuth, (req, res) => {
+  const { nuovaPassword, vecchiaPassword } = req.body;
+  if (!nuovaPassword) return res.json({ ok: false, errore: 'Dati mancanti' });
+  // Se non ha password temporanea, richiede la vecchia come conferma
+  if (!db.haPasswordTemporanea(req.nomeAuth)) {
+    if (!vecchiaPassword || !db.verificaPassword(req.nomeAuth, vecchiaPassword)) {
+      return res.json({ ok: false, errore: 'Vecchia password errata' });
+    }
+  }
+  res.json(db.cambiaPassword(req.nomeAuth, nuovaPassword));
 });
-app.post('/api/eliminaaccount', (req, res) => {
-  const { nome } = req.body;
-  if (!nome) return res.json({ ok: false, errore: 'Dati mancanti' });
-  res.json(db.cancellaUtente(nome));
+app.post('/api/eliminaaccount', richiediAuth, (req, res) => {
+  res.json(db.cancellaUtente(req.nomeAuth));
 });
 
 // --- API Amici ---
-app.get('/api/amici/:nome', (req, res) => { res.json({ ok: true, amici: db.getAmici(req.params.nome), richieste: db.getRichiesteAmicizia(req.params.nome) }); });
-app.post('/api/amici/richiedi', (req, res) => { const r = db.richiediAmicizia(req.body.utente, req.body.amico); if (r.ok) for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === req.body.amico) io.to(s.id).emit('richiestaAmicizia', { da: req.body.utente }); res.json(r); });
-app.post('/api/amici/accetta', (req, res) => { const r = db.accettaAmicizia(req.body.utente, req.body.amico); if (r.ok) for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === req.body.amico) io.to(s.id).emit('amiciziaAccettata', { da: req.body.utente }); res.json(r); });
-app.post('/api/amici/rifiuta', (req, res) => { res.json(db.rifiutaAmicizia(req.body.utente, req.body.amico)); });
-app.post('/api/amici/rimuovi', (req, res) => { res.json(db.rimuoviAmico(req.body.utente, req.body.amico)); });
-app.get('/api/amici/:nome/online', (req, res) => {
+app.get('/api/amici/:nome', richiediAuth, (req, res) => {
+  res.json({ ok: true, amici: db.getAmici(req.params.nome), richieste: db.getRichiesteAmicizia(req.params.nome) });
+});
+app.post('/api/amici/richiedi', richiediAuth, (req, res) => {
+  const r = db.richiediAmicizia(req.nomeAuth, req.body.amico);
+  if (r.ok) for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === req.body.amico) io.to(s.id).emit('richiestaAmicizia', { da: req.nomeAuth });
+  res.json(r);
+});
+app.post('/api/amici/accetta', richiediAuth, (req, res) => {
+  const r = db.accettaAmicizia(req.nomeAuth, req.body.amico);
+  if (r.ok) for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === req.body.amico) io.to(s.id).emit('amiciziaAccettata', { da: req.nomeAuth });
+  res.json(r);
+});
+app.post('/api/amici/rifiuta', richiediAuth, (req, res) => { res.json(db.rifiutaAmicizia(req.nomeAuth, req.body.amico)); });
+app.post('/api/amici/rimuovi', richiediAuth, (req, res) => { res.json(db.rimuoviAmico(req.nomeAuth, req.body.amico)); });
+app.get('/api/amici/:nome/online', richiediAuth, (req, res) => {
   const amici = db.getAmici(req.params.nome).map(a => a.nome); const online = {};
   for (const a of amici) { online[a] = { online: false, stanza: null }; for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === a) { online[a] = { online: true, stanza: s.codiceStanza || null }; break; } }
   res.json({ ok: true, online });
@@ -137,10 +220,10 @@ app.get('/api/torneo/:id/tabellone', (req, res) => {
   if (!tab) return res.json({ ok: false, errore: 'Torneo non trovato' });
   res.json({ ok: true, torneo: tab });
 });
-app.post('/api/torneo/iscriviti', (req, res) => {
-  const { torneoId, nome, numeroSquadra } = req.body;
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
-  const risultato = torneo.iscriviGiocatore(torneoId, nome, ip, numeroSquadra);
+app.post('/api/torneo/iscriviti', richiediAuth, (req, res) => {
+  const { torneoId, numeroSquadra } = req.body;
+  const ip = ipDaReq(req);
+  const risultato = torneo.iscriviGiocatore(torneoId, req.nomeAuth, ip, numeroSquadra);
   if (risultato.ok && risultato.torneoIniziato) {
     io.emit('torneoIniziato', { torneoId });
     avviaPartitePronteTorneo(torneoId);
@@ -149,32 +232,24 @@ app.post('/api/torneo/iscriviti', (req, res) => {
   }
   res.json(risultato);
 });
-app.post('/api/torneo/lascia', (req, res) => {
-  const { torneoId, nome } = req.body;
-  const risultato = torneo.rimuoviIscrizione(torneoId, nome);
+app.post('/api/torneo/lascia', richiediAuth, (req, res) => {
+  const { torneoId } = req.body;
+  const risultato = torneo.rimuoviIscrizione(torneoId, req.nomeAuth);
   if (risultato.ok) io.emit('torneoAggiornato', { torneoId });
   res.json(risultato);
 });
 
 // --- API Admin ---
-app.post('/api/admin/resetpassword', (req, res) => {
-  const { admin, nome } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
-  res.json(db.resetPassword(nome));
+app.post('/api/admin/resetpassword', richiediAdmin, (req, res) => {
+  res.json(db.resetPassword(req.body.nome));
 });
-app.post('/api/admin/cancellautente', (req, res) => {
-  const { admin, nome } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
-  res.json(db.cancellaUtente(nome));
+app.post('/api/admin/cancellautente', richiediAdmin, (req, res) => {
+  res.json(db.cancellaUtente(req.body.nome));
 });
-app.get('/api/admin/utenti', (req, res) => {
-  const nome = req.query.nome;
-  if (!nome || !db.isAdmin(nome)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.get('/api/admin/utenti', richiediAdmin, (req, res) => {
   res.json({ ok: true, utenti: db.getTuttiUtenti() });
 });
-app.get('/api/admin/online', (req, res) => {
-  const nome = req.query.nome;
-  if (!nome || !db.isAdmin(nome)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.get('/api/admin/online', richiediAdmin, (req, res) => {
   const utentiOnline = [];
   for (const [, s] of io.sockets.sockets) {
     if (s.nomeGiocatore) {
@@ -188,31 +263,27 @@ app.get('/api/admin/online', (req, res) => {
   }
   res.json({ ok: true, utentiOnline, stanze: infoStanze });
 });
-app.post('/api/admin/torneo/crea', (req, res) => {
-  const { admin, nome, numGiocatori, modalitaVittoria, valoreVittoria, controlloIp, tipoGioco } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.post('/api/admin/torneo/crea', richiediAdmin, (req, res) => {
+  const { nome, numGiocatori, modalitaVittoria, valoreVittoria, controlloIp, tipoGioco } = req.body;
   const risultato = torneo.creaTorneo(nome, numGiocatori, modalitaVittoria || 'punti', valoreVittoria || 31, controlloIp !== false, tipoGioco || 'maresciallo');
   if (risultato.ok) io.emit('torneoDisponibile', { torneoId: risultato.torneoId });
   res.json(risultato);
 });
-app.post('/api/admin/torneo/annulla', (req, res) => {
-  const { admin, torneoId } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.post('/api/admin/torneo/annulla', richiediAdmin, (req, res) => {
+  const { torneoId } = req.body;
   const risultato = torneo.annullaTorneo(torneoId);
   if (risultato.ok) io.emit('torneoAnnullato', { torneoId });
   res.json(risultato);
 });
-app.post('/api/admin/torneo/assegna', (req, res) => {
-  const { admin, torneoId, nomeUtente, numeroSquadra } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.post('/api/admin/torneo/assegna', richiediAdmin, (req, res) => {
+  const { torneoId, nomeUtente, numeroSquadra } = req.body;
   const risultato = torneo.iscriviGiocatoreInSquadra(torneoId, nomeUtente, numeroSquadra, null);
   if (risultato.ok && risultato.torneoIniziato) { io.emit('torneoIniziato', { torneoId }); avviaPartitePronteTorneo(torneoId); }
   else if (risultato.ok) io.emit('torneoAggiornato', { torneoId });
   res.json(risultato);
 });
-app.post('/api/admin/torneo/sposta', (req, res) => {
-  const { admin, torneoId, nomeUtente, numeroSquadra } = req.body;
-  if (!admin || !db.isAdmin(admin)) return res.status(403).json({ ok: false, errore: 'Non autorizzato' });
+app.post('/api/admin/torneo/sposta', richiediAdmin, (req, res) => {
+  const { torneoId, nomeUtente, numeroSquadra } = req.body;
   const risultato = torneo.spostaGiocatore(torneoId, nomeUtente, numeroSquadra);
   if (risultato.ok) io.emit('torneoAggiornato', { torneoId });
   res.json(risultato);
@@ -232,6 +303,7 @@ function creaStanzaTorneo(torneoId, round, posizione) {
   const partita = creaPartita(tipo, codice, tab.valoreVittoria, 2);
   partita.tipoGioco = tipo;
   stanze.set(codice, partita);
+  segnaAttivita(codice);
   torneo.setCodiceStanza(torneoId, round, posizione, codice);
   const tutti = [...partitaData.squadraA.giocatori, ...partitaData.squadraB.giocatori];
   for (const [, s] of io.sockets.sockets) {
@@ -258,15 +330,54 @@ function cancellaTimerTurno(codice) {
   if (t) { clearTimeout(t.timer); timerTurni.delete(codice); }
 }
 
+// Pulisce tutte le risorse legate a una stanza eliminata.
+// Chiamare PRIMA di stanze.delete per garantire consistenza.
+function cleanupStanza(codice) {
+  cancellaTimerTurno(codice);
+  // Pulisci eventuali disconnessioni pendenti legate alla stanza
+  for (const [chiave, timer] of disconnessioniPendenti) {
+    if (chiave.startsWith(codice + '_')) {
+      clearTimeout(timer);
+      disconnessioniPendenti.delete(chiave);
+    }
+  }
+}
+
+// Pulizia periodica stanze stale (> 30 min inattive, o finePartita > 10 min)
+const ultimoAttivoStanza = new Map(); // codice -> timestamp
+function segnaAttivita(codice) { if (codice) ultimoAttivoStanza.set(codice, Date.now()); }
+const STANZA_STALE_MS = 30 * 60 * 1000;
+const STANZA_FINE_MS = 10 * 60 * 1000;
+setInterval(() => {
+  const ora = Date.now();
+  for (const [codice, partita] of stanze) {
+    const ultimo = ultimoAttivoStanza.get(codice) || 0;
+    const inattivita = ora - ultimo;
+    const tuttiDisconnessi = partita.giocatori.every(g => g.disconnesso || g.id === BOT_ID);
+    let daEliminare = false;
+    if (partita.stato === 'finePartita' && inattivita > STANZA_FINE_MS) daEliminare = true;
+    else if (tuttiDisconnessi && inattivita > STANZA_STALE_MS) daEliminare = true;
+    if (daEliminare) {
+      cleanupStanza(codice);
+      stanze.delete(codice);
+      ultimoAttivoStanza.delete(codice);
+      console.log(`Pulizia: stanza ${codice} eliminata (stato=${partita.stato}, inattivita=${Math.round(inattivita/1000)}s)`);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
 function avviaTimerTurno(codice) {
   cancellaTimerTurno(codice);
   const partita = stanze.get(codice);
   if (!partita || partita.stato !== 'inCorso') return;
   const corrente = partita.getGiocatoreCorrente?.();
   if (!corrente) return;
+  // Se il turno e' del bot, il timer non serve (il bot risponde subito).
+  if (corrente.id === BOT_ID) return;
   const scadenza = Date.now() + TURN_TIMEOUT_MS;
   const timer = setTimeout(() => forfeitPerTimeout(codice, corrente.id), TURN_TIMEOUT_MS);
   timerTurni.set(codice, { timer, scadenza, giocatoreId: corrente.id });
+  segnaAttivita(codice);
   io.to(codice).emit('turnoTimer', { giocatoreId: corrente.id, scadenza });
 }
 
@@ -281,15 +392,35 @@ function botGioca(codice) {
   const partita = stanze.get(codice);
   if (!partita || partita.stato !== 'inCorso') return;
   if (!isBotTurn(partita)) return;
-  const mossa = scegliMossaBot(partita);
+
+  // Difensivo: verifica che il bot esista ancora nella partita.
+  // Se per qualche motivo il bot e' stato rimosso, chiudi la stanza (lascia l'umano fuori).
+  const bot = partita.giocatori.find(g => g.id === BOT_ID);
+  if (!bot) {
+    console.error(`botGioca: bot non presente in stanza ${codice}, chiusura stanza`);
+    cleanupStanza(codice);
+    stanze.delete(codice);
+    ultimoAttivoStanza.delete(codice);
+    io.to(codice).emit('errore', 'Partita terminata per errore interno');
+    return;
+  }
+
+  let mossa;
+  try {
+    mossa = scegliMossaBot(partita);
+  } catch (e) {
+    console.error(`botGioca errore scegliMossaBot:`, e.message);
+    return;
+  }
   if (!mossa) return;
-  const cartaInfo = (() => {
-    const bot = partita.giocatori.find(g => g.id === BOT_ID);
-    const c = bot.mano.find(c => c.id === mossa.cartaId);
-    return c ? { valore: c.valore, seme: c.seme, id: c.id } : null;
-  })();
+
+  const c = bot.mano.find(c => c.id === mossa.cartaId);
+  const cartaInfo = c ? { valore: c.valore, seme: c.seme, id: c.id } : null;
   const risultato = partita.eseguiMossa(BOT_ID, mossa.cartaId, mossa.cartePresaIds);
-  if (!risultato.valida) return;
+  if (!risultato.valida) {
+    console.warn(`botGioca mossa invalida (${mossa.cartaId}): ${risultato.errore}`);
+    return;
+  }
 
   if (partita.stato === 'fineRound' || partita.stato === 'finePartita') {
     const puntiRound = partita.calcolaPuntiRound();
@@ -359,7 +490,9 @@ function forfeitPerTimeout(codice, giocatoreIdAtteso) {
   io.to(codice).emit('avversarioAbbandonato', { nome, motivo: 'timeout' });
   partita.rimuoviGiocatore(giocatore.id);
   if (partita.giocatori.filter(g => !g.disconnesso).length === 0) {
+    cleanupStanza(codice);
     stanze.delete(codice);
+    ultimoAttivoStanza.delete(codice);
   }
 }
 
@@ -376,7 +509,21 @@ function generaCodiceStanza() {
 io.on('connection', (socket) => {
   console.log(`Giocatore connesso: ${socket.id}`);
 
-  socket.on('autenticato', ({ nome }) => { if (nome) socket.nomeGiocatore = nome; });
+  // Autenticazione socket: richiede un token rilasciato al login.
+  socket.on('autenticato', ({ nome, token }) => {
+    const nomeValidato = db.validaSessione(token);
+    if (nomeValidato && nomeValidato === nome) {
+      socket.nomeGiocatore = nomeValidato;
+    } else {
+      socket.nomeGiocatore = null;
+      socket.emit('sessioneNonValida');
+    }
+  });
+
+  const richiediSocketAuth = () => {
+    if (!socket.nomeGiocatore) { socket.emit('errore', 'Non autenticato'); return false; }
+    return true;
+  };
 
   socket.on('chatLobbyMessaggio', ({ testo }) => {
     if (!socket.nomeGiocatore || !testo || !testo.trim()) return;
@@ -391,20 +538,22 @@ io.on('connection', (socket) => {
     for (const [, s] of io.sockets.sockets) if (s.nomeGiocatore === amico) io.to(s.id).emit('invitoStanza', { da: socket.nomeGiocatore, codiceStanza });
   });
 
-  socket.on('uniscitiPartitaTorneo', ({ codiceStanza, nome }) => {
+  socket.on('uniscitiPartitaTorneo', ({ codiceStanza }) => {
+    if (!richiediSocketAuth()) return;
+    const nome = socket.nomeGiocatore;
     const partita = stanze.get(codiceStanza);
     if (!partita) { socket.emit('errore', 'Stanza torneo non trovata'); return; }
     const giocatoreEsistente = partita.giocatori.find(g => g.nome === nome);
     if (giocatoreEsistente) {
       giocatoreEsistente.id = socket.id;
       giocatoreEsistente.disconnesso = false;
-      socket.join(codiceStanza); socket.codiceStanza = codiceStanza; socket.nomeGiocatore = nome;
+      socket.join(codiceStanza); socket.codiceStanza = codiceStanza;
       if (partita.stato !== 'attesa') socket.emit('partitaIniziata', partita.getStato(socket.id));
       return;
     }
     if (partita.giocatori.length >= partita.maxGiocatori) { socket.emit('errore', 'Stanza piena'); return; }
     partita.aggiungiGiocatore(socket.id, nome);
-    socket.join(codiceStanza); socket.codiceStanza = codiceStanza; socket.nomeGiocatore = nome;
+    socket.join(codiceStanza); socket.codiceStanza = codiceStanza;
     io.to(codiceStanza).emit('giocatoreUnito', { giocatori: partita.giocatori.map(g => ({ id: g.id, nome: g.nome })), maxGiocatori: partita.maxGiocatori });
     if (partita.giocatori.length === partita.maxGiocatori) {
       partita.iniziaPartita();
@@ -432,7 +581,9 @@ io.on('connection', (socket) => {
   });
 
   // Crea nuova stanza
-  socket.on('creaStanza', ({ nome, puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto, vsBot }) => {
+  socket.on('creaStanza', ({ puntiVittoria, numGiocatori, tipoGioco, assoPigliaTutto, vsBot }) => {
+    if (!richiediSocketAuth()) return;
+    const nome = socket.nomeGiocatore;
     const codice = generaCodiceStanza();
     const tipo = ['scientifico', 'classica', 'maresciallo'].includes(tipoGioco) ? tipoGioco : 'maresciallo';
     const puntiValidi = TIPI_2_GIOCATORI.includes(tipo) ? [11, 21, 31] : [11, 21, 31, 41, 51];
@@ -446,9 +597,9 @@ io.on('connection', (socket) => {
     partita.aggiungiGiocatore(socket.id, nome);
 
     stanze.set(codice, partita);
+    segnaAttivita(codice);
     socket.join(codice);
     socket.codiceStanza = codice;
-    socket.nomeGiocatore = nome;
 
     if (vsBot) {
       // Aggiungi il bot come secondo giocatore e avvia subito
@@ -467,7 +618,9 @@ io.on('connection', (socket) => {
   });
 
   // Unisciti a stanza esistente
-  socket.on('uniscitiStanza', ({ codice, nome }) => {
+  socket.on('uniscitiStanza', ({ codice }) => {
+    if (!richiediSocketAuth()) return;
+    const nome = socket.nomeGiocatore;
     const partita = stanze.get(codice);
 
     if (!partita) {
@@ -496,7 +649,6 @@ io.on('connection', (socket) => {
 
       socket.join(codice);
       socket.codiceStanza = codice;
-      socket.nomeGiocatore = nome;
 
       socket.emit('partitaIniziata', partita.getStato(socket.id));
       io.to(codice).emit('giocatoreRiconnesso', { nome });
@@ -513,7 +665,6 @@ io.on('connection', (socket) => {
     partita.aggiungiGiocatore(socket.id, nome);
     socket.join(codice);
     socket.codiceStanza = codice;
-    socket.nomeGiocatore = nome;
 
     socket.emit('unitoAStanza', { codice, nome, tipoGioco: partita.tipoGioco || 'maresciallo' });
 
@@ -546,6 +697,18 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Verifica che il giocatore corrente sia questo socket — previene race
+    // tra mossa e forfeit da timer che potrebbero sovrapporsi.
+    const corrente = partita.getGiocatoreCorrente?.();
+    if (!corrente || corrente.id !== socket.id) {
+      socket.emit('mossaNonValida', 'Non e\' il tuo turno');
+      return;
+    }
+
+    // Cancella il timer PRIMA di eseguire la mossa, cosi' anche se e' scaduto
+    // il callback di forfeit non tentera' modifiche sullo stato gia' aggiornato.
+    cancellaTimerTurno(codice);
+
     // Trova la carta giocata prima di eseguire la mossa
     const giocatore = partita.giocatori.find(g => g.id === socket.id);
     const cartaGiocata = giocatore?.mano.find(c => c.id === cartaId);
@@ -559,10 +722,10 @@ io.on('connection', (socket) => {
 
     if (!risultato.valida) {
       socket.emit('mossaNonValida', risultato.errore);
+      // Ripristina il timer se la mossa e' rifiutata (per non lasciare lo stato senza timer)
+      if (partita.stato === 'inCorso' && !partita.vsBot) avviaTimerTurno(codice);
       return;
     }
-
-    cancellaTimerTurno(codice);
 
     // Se è fine round o fine partita
     if (partita.stato === 'fineRound' || partita.stato === 'finePartita') {
@@ -739,7 +902,9 @@ io.on('connection', (socket) => {
     socket.codiceStanza = null;
     io.to(codice).emit('avversarioAbbandonato', { nome: giocatore.nome });
     if (partita.giocatori.length === 0) {
+      cleanupStanza(codice);
       stanze.delete(codice);
+      ultimoAttivoStanza.delete(codice);
       console.log(`Stanza ${codice} eliminata`);
     }
   });
@@ -761,7 +926,9 @@ io.on('connection', (socket) => {
 
     // Partite vs bot: cancella subito alla disconnessione (no penalita', no attesa)
     if (partita.vsBot) {
+      cleanupStanza(codice);
       stanze.delete(codice);
+      ultimoAttivoStanza.delete(codice);
       console.log(`Stanza vs bot ${codice} eliminata (disconnessione)`);
       return;
     }
@@ -795,7 +962,9 @@ io.on('connection', (socket) => {
         console.log(`Giocatore ${nome} rimosso dalla stanza ${codice} (timeout)`);
 
         if (partita.giocatori.filter(g => !g.disconnesso).length === 0) {
+          cleanupStanza(codice);
           stanze.delete(codice);
+          ultimoAttivoStanza.delete(codice);
           console.log(`Stanza ${codice} eliminata`);
         }
       }, 180000);
@@ -806,7 +975,9 @@ io.on('connection', (socket) => {
       io.to(codice).emit('avversarioAbbandonato', { nome: giocatore.nome });
 
       if (partita.giocatori.length === 0) {
+        cleanupStanza(codice);
         stanze.delete(codice);
+        ultimoAttivoStanza.delete(codice);
         console.log(`Stanza ${codice} eliminata`);
       }
     }

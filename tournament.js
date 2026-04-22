@@ -29,7 +29,7 @@ function getNomeRound(round) {
   return nomi[round] || round;
 }
 
-// Crea un nuovo torneo
+// Crea un nuovo torneo (atomico: torneo + squadre + slot partite in una transazione)
 function creaTorneo(nome, numGiocatori, modalitaVittoria, valoreVittoria, controlloIp = true, tipoGioco = 'maresciallo') {
   if (![8, 16].includes(numGiocatori)) {
     return { ok: false, errore: 'Numero giocatori deve essere 8 o 16' };
@@ -43,26 +43,24 @@ function creaTorneo(nome, numGiocatori, modalitaVittoria, valoreVittoria, contro
   const numSquadre = numGiocatori;
   const rounds = getRounds(numSquadre);
 
-  const ins = db.prepare('INSERT INTO tornei (nome, num_giocatori, num_squadre, modalita_vittoria, valore_vittoria, controllo_ip, tipo_gioco) VALUES (?, ?, ?, ?, ?, ?, ?)');
-  const result = ins.run(nome, numGiocatori, numSquadre, modalitaVittoria, valoreVittoria, controlloIp ? 1 : 0, tipo);
-  const torneoId = result.lastInsertRowid;
+  const creaTx = db.transaction(() => {
+    const ins = db.prepare('INSERT INTO tornei (nome, num_giocatori, num_squadre, modalita_vittoria, valore_vittoria, controllo_ip, tipo_gioco) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    const result = ins.run(nome, numGiocatori, numSquadre, modalitaVittoria, valoreVittoria, controlloIp ? 1 : 0, tipo);
+    const torneoId = result.lastInsertRowid;
 
-  // Crea squadre vuote
-  const insSquadra = db.prepare('INSERT INTO tornei_squadre (torneo_id, numero_squadra) VALUES (?, ?)');
-  for (let i = 0; i < numSquadre; i++) {
-    insSquadra.run(torneoId, i);
-  }
+    const insSquadra = db.prepare('INSERT INTO tornei_squadre (torneo_id, numero_squadra) VALUES (?, ?)');
+    for (let i = 0; i < numSquadre; i++) insSquadra.run(torneoId, i);
 
-  // Crea slot partite per ogni round
-  const insPartita = db.prepare('INSERT INTO tornei_partite (torneo_id, round, posizione) VALUES (?, ?, ?)');
-  let matchesInRound = numSquadre / 2;
-  for (const round of rounds) {
-    for (let i = 0; i < matchesInRound; i++) {
-      insPartita.run(torneoId, round, i);
+    const insPartita = db.prepare('INSERT INTO tornei_partite (torneo_id, round, posizione) VALUES (?, ?, ?)');
+    let matchesInRound = numSquadre / 2;
+    for (const round of rounds) {
+      for (let i = 0; i < matchesInRound; i++) insPartita.run(torneoId, round, i);
+      matchesInRound = matchesInRound / 2;
     }
-    matchesInRound = matchesInRound / 2;
-  }
+    return torneoId;
+  });
 
+  const torneoId = creaTx();
   return { ok: true, torneoId };
 }
 
@@ -95,16 +93,17 @@ function iscriviGiocatore(torneoId, nomeUtente, ip, numeroSquadra) {
     }
   }
 
-  db.prepare('INSERT INTO tornei_giocatori (torneo_id, squadra_id, nome_utente, ip) VALUES (?, ?, ?, ?)').run(torneoId, squadra.id, nomeUtente, ip || null);
-
-  // Controlla se il torneo e' pieno
-  const totGiocatori = db.prepare('SELECT COUNT(*) as n FROM tornei_giocatori WHERE torneo_id = ?').get(torneoId).n;
-  let torneoIniziato = false;
-  if (totGiocatori === torneo.num_giocatori) {
-    iniziaTorneo(torneoId);
-    torneoIniziato = true;
-  }
-
+  // Transazione atomica: INSERT giocatore + eventuale avvio torneo se e' pieno
+  const iscriviTx = db.transaction(() => {
+    db.prepare('INSERT INTO tornei_giocatori (torneo_id, squadra_id, nome_utente, ip) VALUES (?, ?, ?, ?)').run(torneoId, squadra.id, nomeUtente, ip || null);
+    const totGiocatori = db.prepare('SELECT COUNT(*) as n FROM tornei_giocatori WHERE torneo_id = ?').get(torneoId).n;
+    if (totGiocatori === torneo.num_giocatori) {
+      iniziaTorneo(torneoId);
+      return true;
+    }
+    return false;
+  });
+  const torneoIniziato = iscriviTx();
   return { ok: true, torneoIniziato };
 }
 
@@ -116,62 +115,61 @@ function rimuoviIscrizione(torneoId, nomeUtente) {
   return { ok: true };
 }
 
-// Inizia il torneo: popola il primo round del tabellone
+// Inizia il torneo: popola il primo round del tabellone (transazione)
 function iniziaTorneo(torneoId) {
-  const torneo = db.prepare('SELECT * FROM tornei WHERE id = ?').get(torneoId);
-  const rounds = getRounds(torneo.num_squadre);
-  const primoRound = rounds[0];
-
-  // Prendi le squadre in ordine
-  const squadre = db.prepare('SELECT id, numero_squadra FROM tornei_squadre WHERE torneo_id = ? ORDER BY numero_squadra').all(torneoId);
-
-  // Popola le partite del primo round
-  const update = db.prepare('UPDATE tornei_partite SET squadra_a = ?, squadra_b = ? WHERE torneo_id = ? AND round = ? AND posizione = ?');
-  for (let i = 0; i < squadre.length / 2; i++) {
-    update.run(squadre[i * 2].id, squadre[i * 2 + 1].id, torneoId, primoRound, i);
-  }
-
-  db.prepare("UPDATE tornei SET stato = 'inCorso', round_corrente = ? WHERE id = ?").run(primoRound, torneoId);
+  const iniziaTx = db.transaction(() => {
+    const torneo = db.prepare('SELECT * FROM tornei WHERE id = ?').get(torneoId);
+    const rounds = getRounds(torneo.num_squadre);
+    const primoRound = rounds[0];
+    const squadre = db.prepare('SELECT id, numero_squadra FROM tornei_squadre WHERE torneo_id = ? ORDER BY numero_squadra').all(torneoId);
+    const update = db.prepare('UPDATE tornei_partite SET squadra_a = ?, squadra_b = ? WHERE torneo_id = ? AND round = ? AND posizione = ?');
+    for (let i = 0; i < squadre.length / 2; i++) {
+      update.run(squadre[i * 2].id, squadre[i * 2 + 1].id, torneoId, primoRound, i);
+    }
+    db.prepare("UPDATE tornei SET stato = 'inCorso', round_corrente = ? WHERE id = ?").run(primoRound, torneoId);
+  });
+  iniziaTx();
 }
 
-// Registra il risultato di una partita e avanza il vincitore
+// Registra il risultato di una partita e avanza il vincitore (transazione)
 function registraRisultato(torneoId, round, posizione, vincitoreId, puntiA, puntiB) {
-  db.prepare("UPDATE tornei_partite SET stato = 'completata', vincitore = ?, punti_a = ?, punti_b = ? WHERE torneo_id = ? AND round = ? AND posizione = ?")
-    .run(vincitoreId, puntiA, puntiB, torneoId, round, posizione);
+  let risultato = { prossimaPartitaPronta: false };
+  const registraTx = db.transaction(() => {
+    db.prepare("UPDATE tornei_partite SET stato = 'completata', vincitore = ?, punti_a = ?, punti_b = ? WHERE torneo_id = ? AND round = ? AND posizione = ?")
+      .run(vincitoreId, puntiA, puntiB, torneoId, round, posizione);
 
-  const torneo = db.prepare('SELECT * FROM tornei WHERE id = ?').get(torneoId);
-  const rounds = getRounds(torneo.num_squadre);
-  const roundIdx = rounds.indexOf(round);
+    const torneo = db.prepare('SELECT * FROM tornei WHERE id = ?').get(torneoId);
+    const rounds = getRounds(torneo.num_squadre);
+    const roundIdx = rounds.indexOf(round);
 
-  // E' la finale?
-  if (roundIdx === rounds.length - 1) {
-    // Torneo completato
-    db.prepare("UPDATE tornei SET stato = 'completato', squadra_vincitrice = ? WHERE id = ?").run(vincitoreId, torneoId);
-    aggiornaStatsTorneo(torneoId, vincitoreId);
-    return { completato: true };
-  }
+    // E' la finale?
+    if (roundIdx === rounds.length - 1) {
+      db.prepare("UPDATE tornei SET stato = 'completato', squadra_vincitrice = ? WHERE id = ?").run(vincitoreId, torneoId);
+      aggiornaStatsTorneo(torneoId, vincitoreId);
+      risultato = { completato: true };
+      return;
+    }
 
-  // Avanza vincitore al prossimo round
-  const prossimoRound = rounds[roundIdx + 1];
-  const prossimaPosizione = Math.floor(posizione / 2);
-  const campo = (posizione % 2 === 0) ? 'squadra_a' : 'squadra_b';
+    // Avanza vincitore al prossimo round
+    const prossimoRound = rounds[roundIdx + 1];
+    const prossimaPosizione = Math.floor(posizione / 2);
+    const campo = (posizione % 2 === 0) ? 'squadra_a' : 'squadra_b';
 
-  db.prepare(`UPDATE tornei_partite SET ${campo} = ? WHERE torneo_id = ? AND round = ? AND posizione = ?`)
-    .run(vincitoreId, torneoId, prossimoRound, prossimaPosizione);
+    db.prepare(`UPDATE tornei_partite SET ${campo} = ? WHERE torneo_id = ? AND round = ? AND posizione = ?`)
+      .run(vincitoreId, torneoId, prossimoRound, prossimaPosizione);
 
-  // Controlla se tutte le partite del round corrente sono completate
-  const rimaste = db.prepare("SELECT COUNT(*) as n FROM tornei_partite WHERE torneo_id = ? AND round = ? AND stato != 'completata'").get(torneoId, round).n;
-  if (rimaste === 0) {
-    db.prepare("UPDATE tornei SET round_corrente = ? WHERE id = ?").run(prossimoRound, torneoId);
-  }
+    const rimaste = db.prepare("SELECT COUNT(*) as n FROM tornei_partite WHERE torneo_id = ? AND round = ? AND stato != 'completata'").get(torneoId, round).n;
+    if (rimaste === 0) {
+      db.prepare("UPDATE tornei SET round_corrente = ? WHERE id = ?").run(prossimoRound, torneoId);
+    }
 
-  // Controlla se la prossima partita ha entrambe le squadre pronte
-  const prossima = db.prepare('SELECT * FROM tornei_partite WHERE torneo_id = ? AND round = ? AND posizione = ?').get(torneoId, prossimoRound, prossimaPosizione);
-  if (prossima && prossima.squadra_a && prossima.squadra_b) {
-    return { prossimaPartitaPronta: true, round: prossimoRound, posizione: prossimaPosizione };
-  }
-
-  return { prossimaPartitaPronta: false };
+    const prossima = db.prepare('SELECT * FROM tornei_partite WHERE torneo_id = ? AND round = ? AND posizione = ?').get(torneoId, prossimoRound, prossimaPosizione);
+    if (prossima && prossima.squadra_a && prossima.squadra_b) {
+      risultato = { prossimaPartitaPronta: true, round: prossimoRound, posizione: prossimaPosizione };
+    }
+  });
+  registraTx();
+  return risultato;
 }
 
 // Aggiorna stats tornei per tutti i partecipanti
@@ -334,16 +332,17 @@ function iscriviGiocatoreInSquadra(torneoId, nomeUtente, numeroSquadra, ip) {
   const count = db.prepare('SELECT COUNT(*) as n FROM tornei_giocatori WHERE squadra_id = ?').get(squadra.id).n;
   if (count >= 1) return { ok: false, errore: 'Squadra piena' };
 
-  db.prepare('INSERT INTO tornei_giocatori (torneo_id, squadra_id, nome_utente, ip) VALUES (?, ?, ?, ?)').run(torneoId, squadra.id, nomeUtente, ip || null);
-
-  // Controlla se il torneo e' pieno
-  const totGiocatori = db.prepare('SELECT COUNT(*) as n FROM tornei_giocatori WHERE torneo_id = ?').get(torneoId).n;
-  let torneoIniziato = false;
-  if (totGiocatori === torneo.num_giocatori) {
-    iniziaTorneo(torneoId);
-    torneoIniziato = true;
-  }
-
+  // Transazione atomica: INSERT giocatore + eventuale avvio torneo se e' pieno
+  const iscriviTx = db.transaction(() => {
+    db.prepare('INSERT INTO tornei_giocatori (torneo_id, squadra_id, nome_utente, ip) VALUES (?, ?, ?, ?)').run(torneoId, squadra.id, nomeUtente, ip || null);
+    const totGiocatori = db.prepare('SELECT COUNT(*) as n FROM tornei_giocatori WHERE torneo_id = ?').get(torneoId).n;
+    if (totGiocatori === torneo.num_giocatori) {
+      iniziaTorneo(torneoId);
+      return true;
+    }
+    return false;
+  });
+  const torneoIniziato = iscriviTx();
   return { ok: true, torneoIniziato };
 }
 
