@@ -1142,12 +1142,11 @@ function mostraMessaggioAuth(testo, tipo = 'errore') {
   el.textContent = testo; el.className = 'messaggio ' + tipo; el.style.display = 'inline-block';
   setTimeout(() => { el.style.display = 'none'; }, 4000);
 }
-let privacyReturnScreen = 'auth';
-function mostraPrivacy(ret) { privacyReturnScreen = ret || 'auth'; mostraSchermata('privacy'); }
-document.getElementById('btnPrivacyIndietro').addEventListener('click', () => mostraSchermata(privacyReturnScreen));
-document.getElementById('linkPrivacyAuth')?.addEventListener('click', (e) => { e.preventDefault(); mostraPrivacy('auth'); });
-document.getElementById('linkPrivacyReg')?.addEventListener('click', (e) => { e.preventDefault(); mostraPrivacy('auth'); });
-document.getElementById('linkPrivacyBanner')?.addEventListener('click', (e) => { e.preventDefault(); document.getElementById('storageBanner').classList.add('nascosto'); mostraPrivacy(privacyReturnScreen); });
+// I link "Informativa sulla Privacy" puntano a /privacy.html (target=_blank) come link normali.
+// L'unico listener JS e' per il link nel banner storage, che chiude il banner prima di aprire la pagina.
+document.getElementById('linkPrivacyBanner')?.addEventListener('click', () => {
+  document.getElementById('storageBanner').classList.add('nascosto');
+});
 if (!localStorage.getItem('storageAccettato')) document.getElementById('storageBanner').classList.remove('nascosto');
 document.getElementById('btnAccettaStorage').addEventListener('click', () => { localStorage.setItem('storageAccettato', '1'); document.getElementById('storageBanner').classList.add('nascosto'); });
 document.getElementById('mostraRegistra').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('authLogin').classList.add('nascosto'); document.getElementById('authRegistra').classList.remove('nascosto'); });

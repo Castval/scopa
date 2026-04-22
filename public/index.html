@@ -32,7 +32,7 @@
         <div class="form-gruppo"><input type="email" id="regEmail" placeholder="Email"></div>
         <div class="form-gruppo"><input type="password" id="regPassword" placeholder="Password (min 4 caratteri)"></div>
         <div class="form-gruppo"><input type="text" id="regCitta" placeholder="Città" maxlength="50"></div>
-        <label class="gdpr-checkbox"><input type="checkbox" id="regConsensoPrv"> Ho letto e accetto l'<a href="#" id="linkPrivacyReg">informativa sulla privacy</a></label>
+        <label class="gdpr-checkbox"><input type="checkbox" id="regConsensoPrv"> Ho letto e accetto l'<a href="/privacy.html" target="_blank" rel="noopener" id="linkPrivacyReg">informativa sulla privacy</a></label>
         <button id="btnRegistra" class="btn-primario">Registrati</button>
         <p class="auth-switch">Hai gia un account? <a href="#" id="mostraLogin">Accedi</a></p>
       </div>
@@ -44,7 +44,7 @@
         <button id="btnCambiaPwd" class="btn-primario">Cambia password</button>
       </div>
       <div id="messaggioAuth" class="messaggio"></div>
-      <p class="auth-footer"><a href="#" id="linkPrivacyAuth">Informativa sulla Privacy</a></p>
+      <p class="auth-footer"><a href="/privacy.html" target="_blank" rel="noopener" id="linkPrivacyAuth">Informativa sulla Privacy</a></p>
 
       <div class="sezione-regole">
         <h3>Regole</h3>
@@ -87,22 +87,6 @@
     <div id="tabelloneScreen" class="schermata">
       <div class="torneo-header"><button id="btnTabelloneIndietro" class="btn-secondario btn-piccolo">Indietro</button><h2 id="tabelloneTitolo">Tabellone</h2></div>
       <div id="tabelloneContenuto" class="tabellone-wrapper"></div>
-    </div>
-
-    <!-- Privacy -->
-    <div id="privacyScreen" class="schermata">
-      <div class="privacy-page">
-        <button id="btnPrivacyIndietro" class="btn-secondario btn-piccolo">Indietro</button>
-        <h2>Informativa sulla Privacy</h2>
-        <p class="privacy-data">Ultimo aggiornamento: 6 aprile 2026</p>
-        <h3>Dati raccolti</h3>
-        <ul><li><strong>Dati di registrazione:</strong> nome utente, email, password (criptata)</li><li><strong>Dati di gioco:</strong> statistiche partite</li><li><strong>Dati tecnici:</strong> indirizzo IP (controllo anti-frode tornei)</li></ul>
-        <h3>Finalita</h3><p>Gestione account, funzionamento gioco, classifiche, prevenzione frodi.</p>
-        <h3>Base giuridica</h3><p>Consenso dell'utente (art. 6 par. 1 lett. a GDPR).</p>
-        <h3>Conservazione</h3><p>I dati vengono conservati per la durata dell'account. Alla cancellazione, tutti i dati vengono eliminati.</p>
-        <h3>Diritti</h3><p>Accesso, rettifica, cancellazione (bottone "Elimina account"), portabilita.</p>
-        <h3>Sicurezza</h3><p>Password criptate con bcrypt.</p>
-      </div>
     </div>
 
     <!-- Lobby -->
@@ -415,7 +399,7 @@
   </div>
 
   <div id="storageBanner" class="storage-banner nascosto">
-    <p>Questo sito utilizza localStorage per il funzionamento del gioco. <a href="#" id="linkPrivacyBanner">Informativa Privacy</a></p>
+    <p>Questo sito utilizza localStorage per il funzionamento del gioco. <a href="/privacy.html" target="_blank" rel="noopener" id="linkPrivacyBanner">Informativa Privacy</a></p>
     <button id="btnAccettaStorage" class="btn-primario btn-piccolo">Accetto</button>
   </div>
   <script src="/socket.io/socket.io.js"></script>
