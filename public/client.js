@@ -47,6 +47,9 @@ function aggiornaBtnMute() {
 }
 document.addEventListener('click', () => { if (!audioCtx) getAudio(); }, { once: true });
 
+// Inizializza socket QUI (prima di qualsiasi socket.on/socket.emit di top-level)
+const socket = io();
+
 // Setup mute toggle, reazioni, chat in partita (al DOMContentLoaded)
 document.addEventListener('DOMContentLoaded', () => {
   aggiornaBtnMute();
@@ -111,8 +114,6 @@ socket.on('chatPartita', ({ nome, testo }) => {
   cont.scrollTop = cont.scrollHeight;
   if (nome !== getNomeUtente()) sounds.reazione();
 });
-
-const socket = io();
 
 // Blocca uscita accidentale
 window.addEventListener('beforeunload', (e) => { if (getSessione()) { e.preventDefault(); e.returnValue = ''; } });
