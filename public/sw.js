@@ -1,5 +1,5 @@
 // Service Worker per Scopa PWA
-const CACHE_VERSION = 'scopa-v4';
+const CACHE_VERSION = 'scopa-v5';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const STATIC_ASSETS = [
   '/',

@@ -178,7 +178,6 @@ const schermate = {
   auth: document.getElementById('auth'),
   torneo: document.getElementById('torneoScreen'),
   tabellone: document.getElementById('tabelloneScreen'),
-  privacy: document.getElementById('privacyScreen'),
   lobby: document.getElementById('lobby'),
   attesa: document.getElementById('attesa'),
   gioco: document.getElementById('gioco'),
