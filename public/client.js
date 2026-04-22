@@ -606,9 +606,9 @@ function aggiornaAttesa(giocatori) {
   }
 }
 
-// Toggle regole
-document.querySelector('.sezione-regole h3')?.addEventListener('click', () => {
-  document.querySelector('.sezione-regole').classList.toggle('chiusa');
+// Toggle regole — applica a TUTTE le sezioni (auth + lobby hanno 4 sezioni separate)
+document.querySelectorAll('.sezione-regole h3').forEach((h) => {
+  h.addEventListener('click', () => h.parentElement.classList.toggle('chiusa'));
 });
 
 // Event listeners
