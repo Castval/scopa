@@ -1,9 +1,9 @@
 const Database = require('better-sqlite3');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('./bcrypt-async'); // async via worker thread — non blocca event loop
 const crypto = require('crypto');
 const path = require('path');
 
-// Cost factor bcrypt: 12 = +sicurezza (~250ms per hash su hw moderno)
+// Cost factor bcrypt: 12 = +sicurezza (~250-500ms per hash a seconda hardware).
 const BCRYPT_COST = 12;
 
 const db = new Database(path.join(__dirname, 'scopa.db'));
@@ -95,6 +95,14 @@ db.exec(`
   )
 `);
 
+// Indici per lookup frequenti. Senza, SQLite fa full-scan.
+// Le UNIQUE create sopra coprono gia' utenti(nome/email) e amici(utente,amico).
+db.exec('CREATE INDEX IF NOT EXISTS idx_amici_utente_stato ON amici(utente, stato)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_amici_amico_stato ON amici(amico, stato)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_tornei_giocatori_nome ON tornei_giocatori(nome_utente)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_tornei_partite_codice ON tornei_partite(codice_stanza)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_tornei_partite_stato ON tornei_partite(torneo_id, stato)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_utenti_punti ON utenti(punti DESC)');
 
 const stmts = {
   registra: db.prepare('INSERT INTO utenti (nome, email, password_hash, citta) VALUES (?, ?, ?, ?)'),
@@ -112,7 +120,7 @@ const stmts = {
   getClassifica: db.prepare('SELECT nome, partite_giocate, partite_vinte, partite_perse, punti, tornei_giocati, tornei_vinti FROM utenti ORDER BY punti DESC LIMIT 20')
 };
 
-function registra(nome, email, password, citta) {
+async function registra(nome, email, password, citta) {
   nome = nome.trim();
   email = email.trim().toLowerCase();
   citta = (citta || '').trim();
@@ -124,19 +132,19 @@ function registra(nome, email, password, citta) {
   if (stmts.trovaPerNome.get(nome)) return { ok: false, errore: 'Nome già in uso' };
   if (stmts.trovaPerEmail.get(email)) return { ok: false, errore: 'Email già registrata' };
 
-  const hash = bcrypt.hashSync(password, BCRYPT_COST);
+  const hash = await bcrypt.hash(password, BCRYPT_COST);
   stmts.registra.run(nome, email, hash, citta);
   return { ok: true };
 }
 
-function login(identificativo, password) {
+async function login(identificativo, password) {
   identificativo = (identificativo || '').trim();
   let utente = stmts.trovaPerNome.get(identificativo);
   if (!utente && identificativo.includes('@')) {
     utente = stmts.trovaPerEmail.get(identificativo.toLowerCase());
   }
   if (!utente) return { ok: false, errore: 'Utente non trovato' };
-  if (!bcrypt.compareSync(password, utente.password_hash)) return { ok: false, errore: 'Password errata' };
+  if (!(await bcrypt.compare(password, utente.password_hash))) return { ok: false, errore: 'Password errata' };
   const token = creaSessione(utente.nome);
   return { ok: true, nome: utente.nome, token, admin: utente.email === ADMIN_EMAIL, passwordTemporanea: !!utente.password_temporanea };
 }
@@ -191,22 +199,21 @@ function getTuttiUtenti() {
   return db.prepare('SELECT nome, email, partite_giocate, partite_vinte, partite_perse, punti, creato_il FROM utenti ORDER BY nome').all();
 }
 
-function resetPassword(nome) {
+async function resetPassword(nome) {
   const utente = stmts.trovaPerNome.get(nome);
   if (!utente) return { ok: false, errore: 'Utente non trovato' };
-  // Genera password temporanea di 6 caratteri
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let tempPwd = '';
   for (let i = 0; i < 6; i++) tempPwd += chars[Math.floor(Math.random() * chars.length)];
-  const hash = bcrypt.hashSync(tempPwd, BCRYPT_COST);
+  const hash = await bcrypt.hash(tempPwd, BCRYPT_COST);
   db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 1 WHERE nome = ?').run(hash, nome);
   distruggiSessioniPerNome(nome);
   return { ok: true, passwordTemporanea: tempPwd };
 }
 
-function cambiaPassword(nome, nuovaPassword) {
+async function cambiaPassword(nome, nuovaPassword) {
   if (nuovaPassword.length < 4) return { ok: false, errore: 'Password deve avere almeno 4 caratteri' };
-  const hash = bcrypt.hashSync(nuovaPassword, BCRYPT_COST);
+  const hash = await bcrypt.hash(nuovaPassword, BCRYPT_COST);
   db.prepare('UPDATE utenti SET password_hash = ?, password_temporanea = 0 WHERE nome = ?').run(hash, nome);
   distruggiSessioniPerNome(nome);
   return { ok: true };
@@ -222,10 +229,10 @@ function cancellaUtente(nome) {
 }
 
 // Verifica password senza creare sessione (per conferma operazioni sensibili)
-function verificaPassword(nome, password) {
+async function verificaPassword(nome, password) {
   const u = stmts.trovaPerNome.get(nome);
   if (!u) return false;
-  return bcrypt.compareSync(password, u.password_hash);
+  return bcrypt.compare(password, u.password_hash);
 }
 function haPasswordTemporanea(nome) {
   const u = stmts.trovaPerNome.get(nome);

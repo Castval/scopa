@@ -20,7 +20,15 @@ const torneo = require('./tournament');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+// perMessageDeflate: compressione WebSocket. Riduce ~50-70% banda sui broadcast
+// di stato (carte + tavolo) a costo di ~5% CPU. Threshold 1KB per evitare
+// overhead su messaggi piccoli (chat, turno ecc.).
+const io = new Server(server, {
+  perMessageDeflate: {
+    threshold: 1024,
+    zlibDeflateOptions: { level: 6 }
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -92,17 +100,17 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 
 // --- API Auth ---
-app.post('/api/registra', (req, res) => {
+app.post('/api/registra', async (req, res) => {
   const { nome, email, password, citta } = req.body;
-  res.json(db.registra(nome, email, password, citta));
+  res.json(await db.registra(nome, email, password, citta));
 });
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { nome, password } = req.body;
   const rate = controllaLoginRate(req);
   if (!rate.ok) {
     return res.status(429).json({ ok: false, errore: `Troppi tentativi. Riprova tra ${rate.attesaSec}s.` });
   }
-  const r = db.login(nome, password);
+  const r = await db.login(nome, password);
   if (!r.ok) registraLoginFallito(rate.ip);
   else resetLoginTentativi(rate.ip);
   res.json(r);
@@ -171,16 +179,15 @@ app.get('/api/admin/metriche', richiediAdmin, (req, res) => {
 app.get('/api/isadmin/:nome', (req, res) => {
   res.json({ ok: true, admin: db.isAdmin(req.params.nome) });
 });
-app.post('/api/cambiapassword', richiediAuth, (req, res) => {
+app.post('/api/cambiapassword', richiediAuth, async (req, res) => {
   const { nuovaPassword, vecchiaPassword } = req.body;
   if (!nuovaPassword) return res.json({ ok: false, errore: 'Dati mancanti' });
-  // Se non ha password temporanea, richiede la vecchia come conferma
   if (!db.haPasswordTemporanea(req.nomeAuth)) {
-    if (!vecchiaPassword || !db.verificaPassword(req.nomeAuth, vecchiaPassword)) {
+    if (!vecchiaPassword || !(await db.verificaPassword(req.nomeAuth, vecchiaPassword))) {
       return res.json({ ok: false, errore: 'Vecchia password errata' });
     }
   }
-  res.json(db.cambiaPassword(req.nomeAuth, nuovaPassword));
+  res.json(await db.cambiaPassword(req.nomeAuth, nuovaPassword));
 });
 app.post('/api/eliminaaccount', richiediAuth, (req, res) => {
   res.json(db.cancellaUtente(req.nomeAuth));
@@ -240,8 +247,8 @@ app.post('/api/torneo/lascia', richiediAuth, (req, res) => {
 });
 
 // --- API Admin ---
-app.post('/api/admin/resetpassword', richiediAdmin, (req, res) => {
-  res.json(db.resetPassword(req.body.nome));
+app.post('/api/admin/resetpassword', richiediAdmin, async (req, res) => {
+  res.json(await db.resetPassword(req.body.nome));
 });
 app.post('/api/admin/cancellautente', richiediAdmin, (req, res) => {
   res.json(db.cancellaUtente(req.body.nome));

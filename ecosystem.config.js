@@ -4,11 +4,14 @@ module.exports = {
       name: 'scopa',
       script: 'server.js',
       cwd: __dirname,
-      instances: 1,
+      instances: 1,            // Su 1/8 OCPU cluster peggiora — single instance
       exec_mode: 'fork',
       autorestart: true,
       watch: false,
-      max_memory_restart: '400M',
+      // OOM protection: pm2 riavvia se supera 800M (su 1GB RAM)
+      max_memory_restart: '800M',
+      // Node heap cap: V8 non alloca oltre, evita OOM kill dall'OS
+      node_args: '--max-old-space-size=768',
       min_uptime: '30s',
       max_restarts: 10,
       restart_delay: 2000,
