@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Informativa sulla Privacy - Scopa</title>
+  <meta name="description" content="Informativa sulla privacy dell'app Scopa (Maresciallo, Classica, Scopone Scientifico). Dati raccolti, finalita, diritti dell'utente ai sensi del GDPR.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a472a 0%, #2d6b40 50%, #1a472a 100%);
+      min-height: 100vh;
+      color: #fff;
+      line-height: 1.6;
+      padding: 20px 15px 40px;
+    }
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    h1 {
+      color: #f5c542;
+      font-size: 2em;
+      margin-bottom: 6px;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    }
+    h2 {
+      color: #f5c542;
+      font-size: 1.3em;
+      margin: 28px 0 10px;
+      border-bottom: 1px solid rgba(245, 197, 66, 0.3);
+      padding-bottom: 4px;
+    }
+    h3 {
+      color: #9fd99f;
+      font-size: 1.05em;
+      margin: 18px 0 6px;
+    }
+    p, li { margin-bottom: 8px; color: #e0e6e0; }
+    ul, ol { margin: 8px 0 8px 24px; }
+    strong { color: #fff; }
+    .meta {
+      color: #9fd99f;
+      font-size: 0.9em;
+      margin-bottom: 20px;
+    }
+    .meta span { display: block; }
+    a { color: #f5c542; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .box {
+      background: rgba(159, 217, 159, 0.08);
+      border-left: 3px solid #9fd99f;
+      padding: 12px 16px;
+      margin: 14px 0;
+      border-radius: 4px;
+    }
+    .footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      color: #9fd99f;
+      font-size: 0.85em;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 20px 18px; }
+      h1 { font-size: 1.5em; }
+      h2 { font-size: 1.15em; }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>Informativa sulla Privacy</h1>
+    <div class="meta">
+      <span><strong>App:</strong> Scopa (Maresciallo, Classica, Scopone Scientifico)</span>
+      <span><strong>Sito:</strong> scopa.duckdns.org</span>
+      <span><strong>Ultimo aggiornamento:</strong> 23 aprile 2026</span>
+    </div>
+
+    <p>La presente informativa descrive come vengono trattati i dati personali degli utenti che utilizzano il servizio Scopa, accessibile via web e come applicazione web installabile (PWA), nel rispetto del Regolamento (UE) 2016/679 (GDPR).</p>
+
+    <h2>1. Titolare del trattamento</h2>
+    <p>Il titolare del trattamento dei dati e' l'amministratore del servizio Scopa, raggiungibile all'indirizzo email <a href="mailto:castellana.valerio@gmail.com">castellana.valerio@gmail.com</a>.</p>
+
+    <h2>2. Dati raccolti</h2>
+    <p>Il servizio raccoglie unicamente i dati strettamente necessari al funzionamento:</p>
+    <ul>
+      <li><strong>Dati di registrazione:</strong> nome utente (username), indirizzo email, password (memorizzata esclusivamente in forma criptata con algoritmo bcrypt).</li>
+      <li><strong>Dati di gioco:</strong> statistiche delle partite giocate (vittorie, sconfitte, punti, tornei, posizione in classifica).</li>
+      <li><strong>Dati tecnici:</strong> indirizzo IP, usato esclusivamente per il controllo anti-frode nei tornei (per evitare piu' account dalla stessa postazione nella stessa squadra di torneo). L'IP non viene conservato in maniera permanente ne associato al profilo utente: e' memorizzato esclusivamente nel record di partecipazione al singolo torneo, insieme ai dati del torneo stesso, e non viene utilizzato per tracciamento, profilazione o analisi statistiche.</li>
+      <li><strong>Dati di sessione:</strong> token di autenticazione memorizzato localmente sul dispositivo (localStorage del browser) per la riconnessione automatica.</li>
+    </ul>
+
+    <div class="box">
+      <strong>Cosa NON raccogliamo:</strong>
+      <ul style="margin-top:6px;">
+        <li>Posizione geografica (GPS)</li>
+        <li>Rubrica, contatti, SMS, chiamate</li>
+        <li>Fotografie, galleria, fotocamera, microfono</li>
+        <li>Identificatori pubblicitari (AAID / IDFA)</li>
+        <li>Dati biometrici o sanitari</li>
+        <li>Dati di profilazione per scopi pubblicitari</li>
+      </ul>
+    </div>
+
+    <h2>3. Permessi e tecnologie utilizzate</h2>
+    <p>Scopa e' distribuita come <strong>Progressive Web App (PWA)</strong> installabile da browser. Non richiede permessi speciali del sistema operativo oltre a quelli standard del browser per accedere a Internet.</p>
+    <p>Le funzionalita' tecniche utilizzate includono:</p>
+    <ul>
+      <li><strong>Service Worker</strong> per il funzionamento offline della schermata iniziale e per il caching delle risorse statiche (solo file HTML/CSS/JS/immagini del gioco, nessun dato utente).</li>
+      <li><strong>WebSocket (Socket.IO)</strong> per la comunicazione real-time con il server di gioco.</li>
+      <li><strong>Notifiche push</strong> (facoltative, richiedono consenso esplicito dell'utente al primo click sull'icona della campanella).</li>
+    </ul>
+
+    <h2>4. Finalita del trattamento</h2>
+    <ul>
+      <li>Gestione dell'account utente e autenticazione.</li>
+      <li>Funzionamento del gioco multiplayer online (partite, amici, chat di gioco, tornei).</li>
+      <li>Calcolo e visualizzazione delle statistiche e delle classifiche.</li>
+      <li>Prevenzione di frodi nei tornei (controllo IP).</li>
+    </ul>
+
+    <h2>5. Base giuridica</h2>
+    <p>Il trattamento dei dati personali si basa principalmente sull'<strong>esecuzione del servizio</strong> richiesto dall'utente (art. 6, par. 1, lett. b del GDPR): il trattamento di nome utente, email, password e statistiche di gioco e' necessario per fornire il servizio Scopa a cui l'utente si e' iscritto. La creazione dell'account configura il rapporto contrattuale con il titolare del trattamento.</p>
+    <p>Il trattamento dell'indirizzo IP ai fini del controllo anti-frode nei tornei si basa sul <strong>legittimo interesse</strong> del titolare (art. 6, par. 1, lett. f del GDPR) di garantire la correttezza e l'integrita' delle competizioni.</p>
+    <p>Le notifiche push, quando attivate, si basano sul <strong>consenso esplicito</strong> dell'utente (art. 6, par. 1, lett. a del GDPR) e possono essere disattivate in qualsiasi momento dalle impostazioni del browser.</p>
+    <p>L'utente puo' in ogni momento recedere dal servizio eliminando autonomamente il proprio account, con conseguente cancellazione dei dati personali.</p>
+
+    <h2>6. Conservazione dei dati</h2>
+    <p>I dati vengono conservati per tutta la durata dell'account. Alla cancellazione dell'account (effettuabile autonomamente dall'utente tramite il bottone "Elimina account" nella lobby) tutti i dati personali vengono eliminati definitivamente dal database, incluse email, password e statistiche.</p>
+
+    <h2>7. Destinatari dei dati e responsabili esterni del trattamento</h2>
+    <p>I dati personali degli utenti <strong>non sono venduti ne ceduti a terze parti per scopi commerciali o di marketing</strong>. L'unico accesso interno e' riservato all'amministratore del sistema per scopi di manutenzione tecnica.</p>
+    <p>Per il funzionamento del servizio, i dati sono elaborati da un <strong>responsabile esterno del trattamento</strong> ai sensi dell'art. 28 GDPR:</p>
+    <ul>
+      <li><strong>Oracle Cloud Infrastructure (OCI)</strong> — Oracle Italia S.r.l. (gruppo Oracle Corporation): fornisce l'infrastruttura server su cui e' ospitato il servizio Scopa. Il provider e' vincolato contrattualmente al trattamento dei dati esclusivamente per le finalita' dichiarate in questa informativa, nel rispetto del GDPR e secondo gli accordi di trattamento dei dati (DPA) standard di Oracle. Il data center utilizzato e' situato nell'Unione Europea. Maggiori informazioni: <a href="https://www.oracle.com/it/legal/privacy/" target="_blank" rel="noopener">oracle.com/it/legal/privacy</a>.</li>
+    </ul>
+    <p>Non sono integrati nel servizio <strong>SDK pubblicitari, analitici o tracker comportamentali di terze parti</strong> (es. Google Analytics, Firebase Analytics, Facebook SDK, crash reporter esterni): non avviene quindi alcuna condivisione automatica di dati con piattaforme terze oltre al provider di hosting necessario al funzionamento.</p>
+
+    <h2>8. Trasferimento dati extra-UE</h2>
+    <p>I dati sono conservati su server situati nell'Unione Europea. Non avvengono trasferimenti verso Paesi terzi al di fuori dell'UE/SEE.</p>
+
+    <h2>9. Tecnologie di memorizzazione locale</h2>
+    <p>Il servizio utilizza il <code>localStorage</code> del browser per mantenere la sessione di login e consentire la riconnessione automatica alle partite, e la <strong>Cache API</strong> del Service Worker per conservare le risorse statiche del gioco (HTML, CSS, JavaScript, immagini, icone) e permettere l'avvio rapido e una limitata esperienza offline. Non vengono utilizzati cookie di profilazione ne di terze parti. Non vengono utilizzati identificatori pubblicitari.</p>
+
+    <h2>10. Sicurezza</h2>
+    <p>Le password sono criptate con algoritmo <code>bcrypt</code> e non sono mai accessibili in chiaro, nemmeno all'amministratore. La comunicazione tra client e server avviene tramite connessione HTTPS/WSS (WebSocket sicuro). L'indirizzo IP dell'utente non e' conservato in maniera permanente: viene utilizzato solo nel contesto del controllo anti-frode dei tornei e non viene condiviso con soggetti esterni oltre al responsabile esterno indicato al punto 7.</p>
+
+    <h2>11. Diritti dell'utente</h2>
+    <p>Ai sensi degli artt. 15-22 del GDPR, l'utente ha diritto di:</p>
+    <ul>
+      <li><strong>Accesso:</strong> conoscere quali dati personali sono trattati.</li>
+      <li><strong>Rettifica:</strong> modificare i propri dati (cambio password disponibile nel profilo utente).</li>
+      <li><strong>Cancellazione ("diritto all'oblio"):</strong> eliminare il proprio account e tutti i dati associati tramite il bottone "Elimina account" nella lobby, o inviando una richiesta all'indirizzo email indicato al punto 1.</li>
+      <li><strong>Portabilita:</strong> richiedere una copia dei propri dati in formato strutturato.</li>
+      <li><strong>Opposizione e limitazione:</strong> opporsi al trattamento o chiederne la limitazione.</li>
+      <li><strong>Reclamo:</strong> proporre reclamo all'Autorita Garante per la Protezione dei Dati Personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener">www.garanteprivacy.it</a>).</li>
+    </ul>
+
+    <h2>12. Minori</h2>
+    <p>Il servizio <strong>non e' destinato a minori di 14 anni</strong>. Non raccogliamo consapevolmente dati personali di minori di 14 anni. Qualora venissimo a conoscenza della registrazione di un minore di 14 anni, procederemo all'immediata cancellazione dell'account e dei relativi dati. I genitori o tutori che ritengono che un minore abbia fornito dati senza consenso sono pregati di contattare l'amministratore all'indirizzo indicato al punto 1.</p>
+
+    <h2>13. Violazioni dei dati (data breach)</h2>
+    <p>In caso di violazione dei dati che comporti un rischio elevato per i diritti e le liberta' degli utenti, il titolare provvedera' a notificare l'evento all'Autorita Garante entro 72 ore dalla scoperta e a informare gli utenti interessati senza ingiustificato ritardo, come previsto dagli artt. 33-34 del GDPR.</p>
+
+    <h2>14. Modifiche all'informativa</h2>
+    <p>Il titolare si riserva il diritto di modificare la presente informativa nel tempo. Eventuali modifiche rilevanti saranno comunicate agli utenti tramite l'app o via email. La versione piu' aggiornata e' sempre consultabile a questo indirizzo.</p>
+
+    <h2>15. Contatti</h2>
+    <p>Per qualsiasi richiesta relativa alla privacy o per esercitare i propri diritti, contattare il titolare:</p>
+    <ul>
+      <li>Email: <a href="mailto:castellana.valerio@gmail.com">castellana.valerio@gmail.com</a></li>
+    </ul>
+
+    <div class="footer">
+      <p>&copy; 2026 Scopa. Tutti i diritti riservati.</p>
+    </div>
+  </main>
+</body>
+</html>
