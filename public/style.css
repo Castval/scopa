@@ -1020,6 +1020,37 @@ body {
 .btn-logout:hover { background: rgba(220,53,69,0.8); }
 .btn-elimina-account { background: none; border: none; color: #888; padding: 6px 10px; cursor: pointer; font-size: 0.75em; text-decoration: underline; }
 .btn-elimina-account:hover { color: #ef5350; }
+
+/* Profilo button (icona) */
+.btn-profilo {
+  background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.4);
+  color: #fff; font-size: 1.2em; padding: 6px 10px; border-radius: 50%;
+  cursor: pointer; line-height: 1;
+}
+.btn-profilo:hover { background: rgba(212,175,55,0.35); }
+
+/* Schermata profilo */
+.profilo-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 20px;
+  padding-bottom: 12px; border-bottom: 1px solid rgba(212,175,55,0.3);
+  max-width: 600px; margin-left: auto; margin-right: auto;
+}
+.profilo-header h2 { color: #d4af37; margin: 0; }
+.profilo-content { max-width: 600px; margin: 0 auto; padding: 0 12px; }
+.profilo-utente {
+  text-align: center; padding: 20px;
+  background: rgba(0,0,0,0.25); border-radius: 12px; margin-bottom: 20px;
+}
+.profilo-icon { font-size: 3.5em; margin-bottom: 8px; }
+.profilo-nome { font-size: 1.4em; font-weight: bold; color: #d4af37; margin-bottom: 12px; }
+.profilo-stats { color: #8bc48b; font-size: 0.95em; line-height: 1.7; }
+.profilo-azioni { text-align: center; margin-top: 20px; }
+.profilo-azioni .btn-elimina-account { font-size: 0.9em; }
+
+/* Link footer lobby (regole) */
+.lobby-footer-link { text-align: center; margin-top: 24px; font-size: 0.9em; }
+.lobby-footer-link a { color: #8bc48b; text-decoration: none; }
+.lobby-footer-link a:hover { color: #d4af37; text-decoration: underline; }
 .btn-admin { background: rgba(138,43,226,0.6); border: none; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
 .btn-admin:hover { background: rgba(138,43,226,0.8); }
 .pannello-admin { max-width: 600px; margin: 0 auto 20px; padding: 20px; background: rgba(138,43,226,0.1); border: 1px solid rgba(138,43,226,0.3); border-radius: 12px; text-align: left; }

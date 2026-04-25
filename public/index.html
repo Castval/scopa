@@ -44,37 +44,11 @@
         <button id="btnCambiaPwd" class="btn-primario">Cambia password</button>
       </div>
       <div id="messaggioAuth" class="messaggio"></div>
-      <p class="auth-footer"><a href="/privacy.html" target="_blank" rel="noopener" id="linkPrivacyAuth">Informativa sulla Privacy</a></p>
-
-      <div class="sezione-regole">
-        <h3>Regole</h3>
-        <div class="regole-contenuto">
-          <p><strong>Mazzo:</strong> 80 carte (2 mazzi napoletani)</p>
-          <p><strong>Distribuzione:</strong> 5 carte a testa, nessuna carta iniziale al tavolo</p>
-
-          <h4>Prese</h4>
-          <ul>
-            <li>L'asso prende tutto (va nelle prese anche se il tavolo è vuoto)</li>
-            <li>Se c'è una carta singola dello stesso valore, devi prenderla (no somme)</li>
-            <li>Non puoi prendere una carta identica (stesso seme e valore) tranne per fare scopa</li>
-          </ul>
-
-          <h4>Punteggi</h4>
-          <ul>
-            <li><strong>Scopa:</strong> 1 punto (3 punti se fatta con carta identica)</li>
-            <li><strong>Maresciallo (10 di spade):</strong> -1 punto se preso, -4 se ci fai scopa</li>
-            <li><strong>Scopa maresciallo con maresciallo:</strong> +10 punti</li>
-            <li><strong>Settebello (7 di denari):</strong> 1 punto (max 2)</li>
-            <li><strong>Otto di denari:</strong> 1 punto se hai anche il settebello (max 2)</li>
-            <li><strong>Più carte di denari:</strong> 1 punto</li>
-            <li><strong>Più carte totali:</strong> 1 punto</li>
-            <li><strong>Primiera:</strong> 1 punto</li>
-            <li><strong>Napola (1,2,3 di denari):</strong> 3 punti + 1 per ogni carta successiva fino al 10 (max 2 napole)</li>
-          </ul>
-
-          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
-        </div>
-      </div>
+      <p class="auth-footer">
+        <a href="/regole.html" target="_blank" rel="noopener">Regole del gioco</a>
+        &nbsp;·&nbsp;
+        <a href="/privacy.html" target="_blank" rel="noopener" id="linkPrivacyAuth">Informativa sulla Privacy</a>
+      </p>
     </div>
 
     <!-- Torneo -->
@@ -94,10 +68,9 @@
       <h1>Scopa</h1>
       <div id="userBar" class="user-bar">
         <span id="userNome"></span>
-        <div id="userStats" class="user-stats"></div>
+        <button id="btnProfilo" class="btn-profilo" title="Profilo">👤</button>
         <button id="btnNotifiche" class="btn-notifiche" title="Attiva notifiche">🔔</button>
         <button id="btnAdmin" class="btn-admin nascosto">Admin</button>
-        <button id="btnEliminaAccount" class="btn-elimina-account">Elimina account</button>
         <button id="btnLogout" class="btn-logout">Esci</button>
       </div>
 
@@ -185,15 +158,6 @@
         </div>
       </div>
 
-      <div class="sezione-amici chiusa">
-        <h3 id="toggleAmici">Amici <span id="amiciCount"></span></h3>
-        <div class="amici-contenuto">
-          <div class="amici-aggiungi"><input type="text" id="amiciNomeInput" placeholder="Nome utente" maxlength="20"><button id="btnAggiungiAmico" class="btn-piccolo btn-primario">Aggiungi</button></div>
-          <div id="amiciRichieste"></div>
-          <div id="amiciLista"></div>
-        </div>
-      </div>
-
       <div class="sezione-classifica chiusa">
         <h3 id="toggleClassifica">Classifica</h3>
         <div class="classifica-contenuto">
@@ -201,75 +165,36 @@
         </div>
       </div>
 
-      <div class="sezione-regole" id="regoleMaresciallo">
-        <h3>Regole Scopa Maresciallo</h3>
-        <div class="regole-contenuto">
-          <p><strong>Mazzo:</strong> 80 carte (2 mazzi napoletani)</p>
-          <p><strong>Distribuzione:</strong> 5 carte a testa, nessuna carta iniziale al tavolo</p>
-          <h4>Prese</h4>
-          <ul>
-            <li>L'asso prende tutto (va nelle prese anche se il tavolo è vuoto)</li>
-            <li>Se c'è una carta singola dello stesso valore, devi prenderla (no somme)</li>
-            <li>Non puoi prendere una carta identica (stesso seme e valore) tranne per fare scopa</li>
-          </ul>
-          <h4>Punteggi</h4>
-          <ul>
-            <li><strong>Scopa:</strong> 1 punto (3 punti se fatta con carta identica)</li>
-            <li><strong>Maresciallo (10 di spade):</strong> -1 punto se preso, -4 se ci fai scopa</li>
-            <li><strong>Scopa maresciallo con maresciallo:</strong> +10 punti</li>
-            <li><strong>Settebello (7 di denari):</strong> 1 punto (max 2)</li>
-            <li><strong>Otto di denari:</strong> 1 punto se hai anche il settebello (max 2)</li>
-            <li><strong>Più carte di denari:</strong> 1 punto</li>
-            <li><strong>Più carte totali:</strong> 1 punto</li>
-            <li><strong>Primiera:</strong> 1 punto</li>
-            <li><strong>Napola (1,2,3 di denari):</strong> 3 punti + 1 per ogni carta successiva fino al 10 (max 2 napole)</li>
-          </ul>
-          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
-        </div>
-      </div>
+      <p class="lobby-footer-link"><a href="/regole.html" target="_blank" rel="noopener">📖 Regole del gioco</a></p>
+    </div>
 
-      <div class="sezione-regole nascosto" id="regoleClassica">
-        <h3>Regole Scopa Classica</h3>
-        <div class="regole-contenuto">
-          <p><strong>Mazzo:</strong> 40 carte napoletane</p>
-          <p><strong>Distribuzione:</strong> 4 carte iniziali sul tavolo, 3 carte a testa per ogni manche</p>
-          <h4>Prese</h4>
-          <ul>
-            <li>Se c'è una carta singola dello stesso valore, devi prenderla</li>
-            <li>Asso piglia tutto opzionale; se attivo, in presenza di un asso a terra l'asso prende solo l'asso</li>
-          </ul>
-          <h4>Punteggi</h4>
-          <ul>
-            <li><strong>Scopa:</strong> 1 punto (l'ultima presa del round non conta come scopa)</li>
-            <li><strong>Settebello (7 di denari):</strong> 1 punto</li>
-            <li><strong>Più carte di denari:</strong> 1 punto</li>
-            <li><strong>Più carte totali:</strong> 1 punto</li>
-            <li><strong>Primiera:</strong> 1 punto</li>
-          </ul>
-          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
-        </div>
+    <!-- Profilo -->
+    <div id="profilo" class="schermata">
+      <div class="profilo-header">
+        <button id="btnProfiloIndietro" class="btn-secondario btn-piccolo">Indietro</button>
+        <h2>Profilo</h2>
       </div>
+      <div class="profilo-content">
+        <div class="profilo-utente">
+          <div class="profilo-icon">👤</div>
+          <div class="profilo-nome" id="profiloNome">—</div>
+          <div class="profilo-stats" id="profiloStats">Caricamento...</div>
+        </div>
 
-      <div class="sezione-regole nascosto" id="regoleScientifico">
-        <h3>Regole Scopone Scientifico</h3>
-        <div class="regole-contenuto">
-          <p><strong>Mazzo:</strong> 40 carte napoletane (1 mazzo)</p>
-          <p><strong>Distribuzione:</strong> 10 carte a testa, nessuna carta al tavolo</p>
-          <h4>Prese</h4>
-          <ul>
-            <li>Se c'è una carta singola dello stesso valore, devi prenderla (ha priorità sulle somme)</li>
-            <li>Se non puoi prendere, devi posare la carta al tavolo</li>
-            <li>L'asso vale 1 (non prende tutto, salvo regola opzionale "Asso piglia tutto")</li>
-          </ul>
-          <h4>Punteggi</h4>
-          <ul>
-            <li><strong>Scopa:</strong> 1 punto (l'ultima presa del round non conta come scopa)</li>
-            <li><strong>Settebello (7 di denari):</strong> 1 punto</li>
-            <li><strong>Più carte di denari:</strong> 1 punto</li>
-            <li><strong>Più carte totali:</strong> 1 punto</li>
-            <li><strong>Primiera:</strong> 1 punto</li>
-          </ul>
-          <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza</p>
+        <div class="sezione-amici">
+          <h3>Amici <span id="amiciCount"></span></h3>
+          <div class="amici-contenuto">
+            <div class="amici-aggiungi">
+              <input type="text" id="amiciNomeInput" placeholder="Nome utente" maxlength="20">
+              <button id="btnAggiungiAmico" class="btn-piccolo btn-primario">Aggiungi</button>
+            </div>
+            <div id="amiciRichieste"></div>
+            <div id="amiciLista"></div>
+          </div>
+        </div>
+
+        <div class="profilo-azioni">
+          <button id="btnEliminaAccount" class="btn-elimina-account">Elimina account</button>
         </div>
       </div>
     </div>
@@ -403,6 +328,6 @@
     <button id="btnAccettaStorage" class="btn-primario btn-piccolo">Accetto</button>
   </div>
   <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js?v=8"></script>
+  <script src="client.js?v=9"></script>
 </body>
 </html>

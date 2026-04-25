@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Regole della Scopa</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 20px 18px 60px;
+      line-height: 1.55;
+      color: #2a2a2a;
+      background: #f4f8f3;
+    }
+    header {
+      border-bottom: 2px solid #2e7d32;
+      padding-bottom: 14px;
+      margin-bottom: 22px;
+    }
+    h1 { color: #1a472a; margin: 0 0 4px; font-size: 1.7em; }
+    h2 { color: #1a472a; margin-top: 28px; font-size: 1.3em; border-bottom: 1px solid #a5c9a7; padding-bottom: 6px; }
+    h3 { color: #2e7d32; margin-top: 18px; font-size: 1.1em; }
+    h4 { color: #2e7d32; margin-top: 14px; margin-bottom: 6px; font-size: 1em; }
+    ul, ol { padding-left: 22px; }
+    li { margin-bottom: 6px; }
+    p { margin: 8px 0 12px; }
+    .torna {
+      display: inline-block;
+      margin-bottom: 18px;
+      color: #1a472a;
+      text-decoration: none;
+      font-size: 0.95em;
+    }
+    .torna:hover { text-decoration: underline; }
+    .indice {
+      background: #e8f1e9;
+      border-left: 3px solid #2e7d32;
+      padding: 10px 14px;
+      margin: 14px 0 22px;
+      border-radius: 4px;
+    }
+    .indice ul { margin: 6px 0; padding-left: 20px; }
+    .indice a { color: #1a472a; text-decoration: none; }
+    .indice a:hover { text-decoration: underline; }
+    .variante {
+      background: #fff;
+      border: 1px solid #d0e0d2;
+      border-radius: 8px;
+      padding: 4px 18px 16px;
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="torna">&larr; Torna alla lobby</a>
+  <header>
+    <h1>Regole della Scopa</h1>
+    <p style="margin:0; color:#666; font-size:0.9em">Le tre varianti supportate</p>
+  </header>
+
+  <div class="indice">
+    <strong>Vai a:</strong>
+    <ul>
+      <li><a href="#maresciallo">Scopa Maresciallo</a></li>
+      <li><a href="#classica">Scopa Classica</a></li>
+      <li><a href="#scientifico">Scopone Scientifico</a></li>
+    </ul>
+  </div>
+
+  <div class="variante" id="maresciallo">
+    <h2>Scopa Maresciallo</h2>
+    <p><strong>Mazzo:</strong> 80 carte (2 mazzi napoletani).</p>
+    <p><strong>Distribuzione:</strong> 5 carte a testa, nessuna carta iniziale al tavolo.</p>
+
+    <h4>Prese</h4>
+    <ul>
+      <li>L'asso prende tutto (va nelle prese anche se il tavolo e' vuoto).</li>
+      <li>Se c'e' una carta singola dello stesso valore, devi prenderla (no somme).</li>
+      <li>Non puoi prendere una carta identica (stesso seme e valore) tranne per fare scopa.</li>
+    </ul>
+
+    <h4>Punteggi</h4>
+    <ul>
+      <li><strong>Scopa</strong>: 1 punto (3 punti se fatta con carta identica).</li>
+      <li><strong>Maresciallo (10 di spade)</strong>: -1 punto se preso, -4 se ci fai scopa.</li>
+      <li><strong>Scopa maresciallo con maresciallo</strong>: +10 punti.</li>
+      <li><strong>Settebello (7 di denari)</strong>: 1 punto (max 2).</li>
+      <li><strong>Otto di denari</strong>: 1 punto se hai anche il settebello (max 2).</li>
+      <li><strong>Piu' carte di denari</strong>: 1 punto.</li>
+      <li><strong>Piu' carte totali</strong>: 1 punto.</li>
+      <li><strong>Primiera</strong>: 1 punto.</li>
+      <li><strong>Napola (1,2,3 di denari)</strong>: 3 punti + 1 per ogni carta successiva fino al 10 (max 2 napole).</li>
+    </ul>
+
+    <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza.</p>
+  </div>
+
+  <div class="variante" id="classica">
+    <h2>Scopa Classica</h2>
+    <p><strong>Mazzo:</strong> 40 carte napoletane.</p>
+    <p><strong>Distribuzione:</strong> 4 carte iniziali sul tavolo, 3 carte a testa per ogni manche.</p>
+
+    <h4>Prese</h4>
+    <ul>
+      <li>Se c'e' una carta singola dello stesso valore, devi prenderla.</li>
+      <li>Asso piglia tutto opzionale: se attivo, in presenza di un asso a terra l'asso prende solo l'asso.</li>
+    </ul>
+
+    <h4>Punteggi</h4>
+    <ul>
+      <li><strong>Scopa</strong>: 1 punto (l'ultima presa del round non conta come scopa).</li>
+      <li><strong>Settebello (7 di denari)</strong>: 1 punto.</li>
+      <li><strong>Piu' carte di denari</strong>: 1 punto.</li>
+      <li><strong>Piu' carte totali</strong>: 1 punto.</li>
+      <li><strong>Primiera</strong>: 1 punto.</li>
+    </ul>
+
+    <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza.</p>
+  </div>
+
+  <div class="variante" id="scientifico">
+    <h2>Scopone Scientifico</h2>
+    <p><strong>Mazzo:</strong> 40 carte napoletane (1 mazzo).</p>
+    <p><strong>Distribuzione:</strong> 10 carte a testa, nessuna carta al tavolo.</p>
+
+    <h4>Prese</h4>
+    <ul>
+      <li>Se c'e' una carta singola dello stesso valore, devi prenderla (priorita' sulle somme).</li>
+      <li>Se non puoi prendere, devi posare la carta al tavolo.</li>
+      <li>L'asso vale 1 (non prende tutto, salvo regola opzionale "Asso piglia tutto").</li>
+    </ul>
+
+    <h4>Punteggi</h4>
+    <ul>
+      <li><strong>Scopa</strong>: 1 punto (l'ultima presa del round non conta come scopa).</li>
+      <li><strong>Settebello (7 di denari)</strong>: 1 punto.</li>
+      <li><strong>Piu' carte di denari</strong>: 1 punto.</li>
+      <li><strong>Piu' carte totali</strong>: 1 punto.</li>
+      <li><strong>Primiera</strong>: 1 punto.</li>
+    </ul>
+
+    <p><strong>Vittoria:</strong> punti scelti dal creatore della stanza.</p>
+  </div>
+</body>
+</html>

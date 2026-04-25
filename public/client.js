@@ -202,6 +202,7 @@ const schermate = {
   torneo: document.getElementById('torneoScreen'),
   tabellone: document.getElementById('tabelloneScreen'),
   lobby: document.getElementById('lobby'),
+  profilo: document.getElementById('profilo'),
   attesa: document.getElementById('attesa'),
   gioco: document.getElementById('gioco'),
   fineRound: document.getElementById('fineRound')
@@ -209,8 +210,31 @@ const schermate = {
 
 // Mostra schermata
 function mostraSchermata(nome) {
-  Object.values(schermate).forEach(s => s.classList.remove('attiva'));
-  schermate[nome].classList.add('attiva');
+  Object.values(schermate).forEach(s => { if (s) s.classList.remove('attiva'); });
+  if (schermate[nome]) schermate[nome].classList.add('attiva');
+}
+
+// Schermata profilo: carica stats + amici dell'utente loggato.
+async function mostraProfilo() {
+  document.getElementById('profiloNome').textContent = getNomeUtente() || '—';
+  document.getElementById('profiloStats').textContent = 'Caricamento...';
+  mostraSchermata('profilo');
+  try {
+    const res = await fetch(`/api/stats/${encodeURIComponent(getNomeUtente())}`);
+    const data = await res.json();
+    if (data.ok) {
+      const s = data.stats;
+      const torneiStr = s.tornei_giocati > 0
+        ? `<br><span style="font-size:0.9em">Tornei: ${s.tornei_vinti}/${s.tornei_giocati}</span>`
+        : '';
+      document.getElementById('profiloStats').innerHTML =
+        `<strong>${s.partite_giocate}</strong> partite · <strong>${s.partite_vinte}</strong> vinte · <strong>${s.partite_perse}</strong> perse<br>` +
+        `<span style="color:#d4af37;font-size:1.1em">${s.punti} punti</span>${torneiStr}`;
+    } else {
+      document.getElementById('profiloStats').textContent = 'Statistiche non disponibili';
+    }
+  } catch { document.getElementById('profiloStats').textContent = 'Errore caricamento'; }
+  if (typeof caricaAmici === 'function') caricaAmici();
 }
 
 // Crea elemento carta
@@ -629,11 +653,6 @@ function aggiornaAttesa(giocatori) {
   }
 }
 
-// Toggle regole — applica a TUTTE le sezioni (auth + lobby hanno 4 sezioni separate)
-document.querySelectorAll('.sezione-regole h3').forEach((h) => {
-  h.addEventListener('click', () => h.parentElement.classList.toggle('chiusa'));
-});
-
 // Event listeners
 document.getElementById('btnCreaStanza').addEventListener('click', () => {
   const nome = getNomeUtente();
@@ -674,9 +693,6 @@ function aggiornaOpzioniLobby() {
   const gruppoNum = document.getElementById('gruppoNumGiocatori');
   const gruppoOpz = document.getElementById('gruppoOpzioniScientifico');
   const sel = document.getElementById('puntiVittoria');
-  const regM = document.getElementById('regoleMaresciallo');
-  const regC = document.getElementById('regoleClassica');
-  const regS = document.getElementById('regoleScientifico');
   const due = (tipo === 'scientifico' || tipo === 'classica');
 
   if (due) {
@@ -689,10 +705,6 @@ function aggiornaOpzioniLobby() {
     gruppoOpz?.classList.add('nascosto');
     [...sel.options].forEach(o => { o.hidden = false; });
   }
-
-  regM?.classList.toggle('nascosto', tipo !== 'maresciallo');
-  regC?.classList.toggle('nascosto', tipo !== 'classica');
-  regS?.classList.toggle('nascosto', tipo !== 'scientifico');
 }
 document.querySelectorAll('input[name="tipoGioco"]').forEach(r => r.addEventListener('change', aggiornaOpzioniLobby));
 
@@ -1153,7 +1165,9 @@ async function caricaAmici() {
   } catch (e) {}
 }
 document.getElementById('btnAggiungiAmico')?.addEventListener('click', async () => { const inp=document.getElementById('amiciNomeInput'); const a=inp.value.trim(); if(!a) return; const r=await(await fetchAuth('/api/amici/richiedi',{method:'POST',body:JSON.stringify({amico:a})})).json(); if(!r.ok){mostraMessaggio(r.errore,'errore');return;} inp.value=''; mostraMessaggio(r.accettato?'Ora siete amici!':'Richiesta inviata','successo'); caricaAmici(); });
-document.getElementById('toggleAmici')?.addEventListener('click', () => document.querySelector('.sezione-amici').classList.toggle('chiusa'));
+// (toggleAmici rimosso: la sezione amici e' ora dentro #profilo, sempre aperta)
+document.getElementById('btnProfilo')?.addEventListener('click', () => mostraProfilo());
+document.getElementById('btnProfiloIndietro')?.addEventListener('click', () => mostraSchermata('lobby'));
 socket.on('richiestaAmicizia', ({ da }) => { mostraMessaggio(`${da} ti ha inviato una richiesta`,'info'); if(Notification.permission==='granted'&&document.hidden) try{new Notification('Scopa Maresciallo',{body:`${da} ti ha inviato una richiesta`});}catch(e){} caricaAmiciDebounced(); });
 socket.on('amiciziaAccettata', ({ da }) => { mostraMessaggio(`${da} ha accettato!`,'successo'); caricaAmiciDebounced(); });
 socket.on('invitoStanza', ({ da, codiceStanza }) => { if(confirm(`${da} ti invita nella stanza ${codiceStanza}. Unirsi?`)){document.getElementById('codiceStanza').value=codiceStanza; document.getElementById('btnUnisciti').click();} });
@@ -1213,7 +1227,8 @@ document.getElementById('btnLogout').addEventListener('click', () => { setUtente
 async function entraInLobby() {
   document.getElementById('userNome').textContent = getNomeUtente();
   socket.emit('autenticato', { nome: getNomeUtente(), token: getTokenSessione() });
-  try { const d = await (await fetch(`/api/stats/${encodeURIComponent(getNomeUtente())}`)).json(); if (d.ok) { const s = d.stats; const t = s.tornei_giocati > 0 ? ` | Tornei: ${s.tornei_vinti}/${s.tornei_giocati}` : ''; document.getElementById('userStats').innerHTML = `${s.partite_giocate} partite | ${s.partite_vinte}V ${s.partite_perse}P | ${s.punti} pt${t}`; } } catch {}
+  // Le stats utente sono ora nel profilo (#profilo). entraInLobby non le carica
+  // piu' inline; vengono caricate da mostraProfilo() al click sul bottone profilo.
   if (isAdmin) document.getElementById('btnAdmin').classList.remove('nascosto'); else { document.getElementById('btnAdmin').classList.add('nascosto'); document.getElementById('pannelloAdmin').classList.add('nascosto'); }
   caricaClassifica(); aggiornaIconaNotifiche(); caricaAmici(); mostraSchermata('lobby');
 }
