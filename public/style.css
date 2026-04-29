@@ -1047,6 +1047,26 @@ body {
 .profilo-azioni { text-align: center; margin-top: 20px; }
 .profilo-azioni .btn-elimina-account { font-size: 0.9em; }
 
+/* Selettore mazzo carte nel profilo */
+.sezione-mazzo {
+  margin-top: 20px; padding: 20px;
+  background: rgba(0,0,0,0.3); border-radius: 12px;
+  max-width: 500px; margin-left: auto; margin-right: auto;
+}
+.sezione-mazzo h3 { text-align: center; color: #d4af37; margin-bottom: 15px; }
+.mazzo-selettore { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.mazzo-selettore select {
+  padding: 8px 12px; font-size: 1em;
+  background: #2d5a3f; color: #fff; border: 1px solid #d4af37; border-radius: 6px;
+  min-width: 200px; cursor: pointer;
+}
+.mazzo-anteprima img {
+  width: 80px; height: auto; border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  background: #fff;
+}
+.mazzo-credito { font-size: 0.8em; color: #8bc48b; text-align: center; }
+
 /* Link footer lobby (regole) */
 .lobby-footer-link { text-align: center; margin-top: 24px; font-size: 0.9em; }
 .lobby-footer-link a { color: #8bc48b; text-decoration: none; }

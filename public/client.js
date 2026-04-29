@@ -170,14 +170,47 @@ const OFFSET_SEMI = {
   bastoni: 30
 };
 
-// Genera il percorso dell'immagine per una carta
+// Mazzi carte: ogni voce ha id, etichetta visibile, estensione file e crediti.
+// I file devono stare in public/immagini/<id>/ con convenzione NN_NomeValore_di_seme.<ext>.
+const MAZZI = [
+  { id: 'napoletane',  nome: 'Napoletane',  ext: 'jpg', credito: '' },
+  { id: 'bergamasche', nome: 'Bergamasche', ext: 'jpg', credito: 'Poulpy, CC BY-SA 3.0' },
+  { id: 'bresciane',   nome: 'Bresciane',   ext: 'svg', credito: 'ZZandro, CC BY-SA 4.0' }
+];
+const MAZZI_DISPONIBILI = MAZZI.map(m => m.id);
+function getMazzo(id) { return MAZZI.find(m => m.id === id) || MAZZI[0]; }
+function getMazzoCorrente() {
+  try {
+    const m = localStorage.getItem('mazzoCarte');
+    if (m && MAZZI_DISPONIBILI.includes(m)) return m;
+  } catch {}
+  return 'napoletane';
+}
+function setMazzoCorrente(mazzo) {
+  if (!MAZZI_DISPONIBILI.includes(mazzo)) return false;
+  try { localStorage.setItem('mazzoCarte', mazzo); } catch {}
+  // Re-renderizza tutte le carte visibili senza ricaricare la pagina.
+  document.querySelectorAll('.carta img').forEach(img => {
+    const carta = img.closest('.carta');
+    if (!carta || !carta.dataset.id) return;
+    const [valoreStr, semeRaw] = carta.dataset.id.split('_');
+    const valore = parseInt(valoreStr, 10);
+    const seme = semeRaw.toLowerCase();
+    img.src = getImmagineCarta(valore, seme);
+  });
+  return true;
+}
+
+// Genera il percorso dell'immagine per una carta nel mazzo corrente.
 function getImmagineCarta(valore, seme) {
+  const mazzoId = getMazzoCorrente();
+  const mazzo = getMazzo(mazzoId);
   const numero = OFFSET_SEMI[seme] + valore;
   const numeroStr = numero.toString().padStart(2, '0');
   const nomeValore = NOMI_VALORI[valore];
-  // Nota: l'ultimo file ha "Bastoni" con B maiuscola
+  // Nota: l'ultimo file ha "Bastoni" con B maiuscola (quirk dello storico mazzo Napoletane)
   const nomeSeme = (numero === 40) ? 'Bastoni' : seme;
-  return `immagini/${numeroStr}_${nomeValore}_di_${nomeSeme}.jpg`;
+  return `immagini/${mazzoId}/${numeroStr}_${nomeValore}_di_${nomeSeme}.${mazzo.ext}`;
 }
 
 // Stato locale
@@ -235,6 +268,39 @@ async function mostraProfilo() {
     }
   } catch { document.getElementById('profiloStats').textContent = 'Errore caricamento'; }
   if (typeof caricaAmici === 'function') caricaAmici();
+  inizializzaSelettoreMazzo();
+}
+
+// Inizializza il dropdown mazzo nel pannello profilo (idempotente).
+function inizializzaSelettoreMazzo() {
+  const sel = document.getElementById('selectMazzo');
+  const anteprima = document.getElementById('mazzoAnteprima');
+  const credito = document.getElementById('mazzoCredito');
+  if (!sel) return;
+  if (!sel.options.length) {
+    for (const m of MAZZI) {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = m.nome;
+      sel.appendChild(opt);
+    }
+    sel.addEventListener('change', () => {
+      setMazzoCorrente(sel.value);
+      aggiornaAnteprimaMazzo();
+    });
+  }
+  sel.value = getMazzoCorrente();
+  aggiornaAnteprimaMazzo();
+}
+
+function aggiornaAnteprimaMazzo() {
+  const anteprima = document.getElementById('mazzoAnteprima');
+  const credito = document.getElementById('mazzoCredito');
+  if (!anteprima) return;
+  // Anteprima = settebello (7 di denari)
+  anteprima.innerHTML = `<img src="${getImmagineCarta(7, 'denari')}" alt="anteprima mazzo">`;
+  const m = getMazzo(getMazzoCorrente());
+  if (credito) credito.textContent = m.credito ? `Immagini: ${m.credito}` : '';
 }
 
 // Crea elemento carta
