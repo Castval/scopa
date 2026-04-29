@@ -6,7 +6,7 @@ const os = require('os');
 const { ScopaMaresciallo } = require('./games/maresciallo');
 const { ScoponeScientifico } = require('./games/scientifico');
 const { ScopaClassica } = require('./games/classica');
-const { BOT_ID, BOT_NOME, scegliMossaBot } = require('./games/bot');
+const { AI_ID, getAINome, scegliMossa: scegliMossaAI } = require('./games/ai');
 
 function creaPartita(tipo, codice, punti, num, opzioni = {}) {
   if (tipo === 'scientifico') return new ScoponeScientifico(codice, punti, opzioni);
@@ -360,7 +360,7 @@ setInterval(() => {
   for (const [codice, partita] of stanze) {
     const ultimo = ultimoAttivoStanza.get(codice) || 0;
     const inattivita = ora - ultimo;
-    const tuttiDisconnessi = partita.giocatori.every(g => g.disconnesso || g.id === BOT_ID);
+    const tuttiDisconnessi = partita.giocatori.every(g => g.disconnesso || g.id === AI_ID);
     let daEliminare = false;
     if (partita.stato === 'finePartita' && inattivita > STANZA_FINE_MS) daEliminare = true;
     else if (tuttiDisconnessi && inattivita > STANZA_STALE_MS) daEliminare = true;
@@ -379,8 +379,8 @@ function avviaTimerTurno(codice) {
   if (!partita || partita.stato !== 'inCorso') return;
   const corrente = partita.getGiocatoreCorrente?.();
   if (!corrente) return;
-  // Se il turno e' del bot, il timer non serve (il bot risponde subito).
-  if (corrente.id === BOT_ID) return;
+  // Se il turno e' dell'AI, il timer non serve (l'AI risponde subito).
+  if (corrente.id === AI_ID) return;
   const scadenza = Date.now() + TURN_TIMEOUT_MS;
   const timer = setTimeout(() => forfeitPerTimeout(codice, corrente.id), TURN_TIMEOUT_MS);
   timerTurni.set(codice, { timer, scadenza, giocatoreId: corrente.id });
@@ -388,23 +388,21 @@ function avviaTimerTurno(codice) {
   io.to(codice).emit('turnoTimer', { giocatoreId: corrente.id, scadenza });
 }
 
-// === BOT ===
-function isBotTurn(partita) {
+// === AI ===
+function isAITurn(partita) {
   if (!partita || !partita.vsBot) return false;
   const corrente = partita.getGiocatoreCorrente?.();
-  return corrente && corrente.id === BOT_ID;
+  return corrente && corrente.id === AI_ID;
 }
 
-function botGioca(codice) {
+function aiGioca(codice) {
   const partita = stanze.get(codice);
   if (!partita || partita.stato !== 'inCorso') return;
-  if (!isBotTurn(partita)) return;
+  if (!isAITurn(partita)) return;
 
-  // Difensivo: verifica che il bot esista ancora nella partita.
-  // Se per qualche motivo il bot e' stato rimosso, chiudi la stanza (lascia l'umano fuori).
-  const bot = partita.giocatori.find(g => g.id === BOT_ID);
-  if (!bot) {
-    console.error(`botGioca: bot non presente in stanza ${codice}, chiusura stanza`);
+  const ai = partita.giocatori.find(g => g.id === AI_ID);
+  if (!ai) {
+    console.error(`aiGioca: AI non presente in stanza ${codice}, chiusura stanza`);
     cleanupStanza(codice);
     stanze.delete(codice);
     ultimoAttivoStanza.delete(codice);
@@ -414,18 +412,18 @@ function botGioca(codice) {
 
   let mossa;
   try {
-    mossa = scegliMossaBot(partita);
+    mossa = scegliMossaAI(partita);
   } catch (e) {
-    console.error(`botGioca errore scegliMossaBot:`, e.message);
+    console.error(`aiGioca errore scegliMossaAI:`, e.message);
     return;
   }
   if (!mossa) return;
 
-  const c = bot.mano.find(c => c.id === mossa.cartaId);
+  const c = ai.mano.find(c => c.id === mossa.cartaId);
   const cartaInfo = c ? { valore: c.valore, seme: c.seme, id: c.id } : null;
-  const risultato = partita.eseguiMossa(BOT_ID, mossa.cartaId, mossa.cartePresaIds);
+  const risultato = partita.eseguiMossa(AI_ID, mossa.cartaId, mossa.cartePresaIds);
   if (!risultato.valida) {
-    console.warn(`botGioca mossa invalida (${mossa.cartaId}): ${risultato.errore}`);
+    console.warn(`aiGioca mossa invalida (${mossa.cartaId}): ${risultato.errore}`);
     return;
   }
 
@@ -434,8 +432,8 @@ function botGioca(codice) {
     const dettagliPunti = partita.calcolaPuntiRoundDettagliato();
     const finePartita = partita.stato === 'finePartita';
     const vincitore = finePartita ? partita.getVincitore() : null;
-    // NIENTE stats aggiornate in partita vs bot
-    const umano = partita.giocatori.find(g => g.id !== BOT_ID);
+    // NIENTE stats aggiornate in partita vs AI
+    const umano = partita.giocatori.find(g => g.id !== AI_ID);
     if (umano) {
       const sqMia = partita.getSquadraDelGiocatore(umano.id);
       const sqAvv = 1 - sqMia;
@@ -447,25 +445,25 @@ function botGioca(codice) {
         finePartita,
         vincitore,
         cartaGiocata: cartaInfo,
-        giocatoreId: BOT_ID
+        giocatoreId: AI_ID
       });
     }
     return;
   }
 
   // Stato aggiornato all'umano
-  const umano = partita.giocatori.find(g => g.id !== BOT_ID);
+  const umano = partita.giocatori.find(g => g.id !== AI_ID);
   if (umano) {
     io.to(umano.id).emit('statoAggiornato', {
       ...partita.getStato(umano.id),
       cartaGiocata: cartaInfo,
-      giocatoreId: BOT_ID
+      giocatoreId: AI_ID
     });
   }
 
-  // Se e' ancora il turno del bot (non dovrebbe ma per sicurezza)
-  if (isBotTurn(partita)) {
-    setTimeout(() => botGioca(codice), 800 + Math.random() * 600);
+  // Se e' ancora il turno dell'AI (non dovrebbe ma per sicurezza)
+  if (isAITurn(partita)) {
+    setTimeout(() => aiGioca(codice), 800 + Math.random() * 600);
   }
 }
 
@@ -610,13 +608,13 @@ io.on('connection', (socket) => {
 
     if (vsBot) {
       // Aggiungi il bot come secondo giocatore e avvia subito
-      partita.aggiungiGiocatore(BOT_ID, BOT_NOME);
+      partita.aggiungiGiocatore(AI_ID, getAINome(tipo));
       partita.iniziaPartita();
       socket.emit('stanzaCreata', { codice, nome, numGiocatori: num, tipoGioco: tipo });
       socket.emit('partitaIniziata', partita.getStato(socket.id));
-      console.log(`Stanza ${codice} vs BOT creata da ${nome} (${tipo})`);
+      console.log(`Stanza ${codice} vs AI creata da ${nome} (${tipo})`);
       // Se tocca al bot iniziare
-      if (isBotTurn(partita)) setTimeout(() => botGioca(codice), 1000);
+      if (isAITurn(partita)) setTimeout(() => aiGioca(codice), 1000);
       return;
     }
 
@@ -764,7 +762,7 @@ io.on('connection', (socket) => {
       }
 
       for (const g of partita.giocatori) {
-        if (g.id === BOT_ID) continue;
+        if (g.id === AI_ID) continue;
         const stato = partita.getStato(g.id);
         const sqMia = partita.getSquadraDelGiocatore(g.id);
         const sqAvv = 1 - sqMia;
@@ -785,7 +783,7 @@ io.on('connection', (socket) => {
     } else {
       // Aggiorna stato per entrambi i giocatori (skip bot)
       for (const g of partita.giocatori) {
-        if (g.id === BOT_ID) continue;
+        if (g.id === AI_ID) continue;
         io.to(g.id).emit('statoAggiornato', {
           ...partita.getStato(g.id),
           cartaGiocata: cartaInfo,
@@ -793,7 +791,7 @@ io.on('connection', (socket) => {
         });
       }
       if (partita.vsBot) {
-        if (isBotTurn(partita)) setTimeout(() => botGioca(codice), 800 + Math.random() * 700);
+        if (isAITurn(partita)) setTimeout(() => aiGioca(codice), 800 + Math.random() * 700);
       } else {
         avviaTimerTurno(codice);
       }
@@ -841,11 +839,11 @@ io.on('connection', (socket) => {
     partita.nuovoRound();
 
     for (const g of partita.giocatori) {
-      if (g.id === BOT_ID) continue;
+      if (g.id === AI_ID) continue;
       io.to(g.id).emit('partitaIniziata', partita.getStato(g.id));
     }
     if (partita.vsBot) {
-      if (isBotTurn(partita)) setTimeout(() => botGioca(codice), 1000);
+      if (isAITurn(partita)) setTimeout(() => aiGioca(codice), 1000);
     } else {
       avviaTimerTurno(codice);
     }
@@ -867,11 +865,11 @@ io.on('connection', (socket) => {
     partita.iniziaPartita();
 
     for (const g of partita.giocatori) {
-      if (g.id === BOT_ID) continue;
+      if (g.id === AI_ID) continue;
       io.to(g.id).emit('partitaIniziata', partita.getStato(g.id));
     }
     if (partita.vsBot) {
-      if (isBotTurn(partita)) setTimeout(() => botGioca(codice), 1000);
+      if (isAITurn(partita)) setTimeout(() => aiGioca(codice), 1000);
     } else {
       avviaTimerTurno(codice);
     }
@@ -936,7 +934,7 @@ io.on('connection', (socket) => {
       cleanupStanza(codice);
       stanze.delete(codice);
       ultimoAttivoStanza.delete(codice);
-      console.log(`Stanza vs bot ${codice} eliminata (disconnessione)`);
+      console.log(`Stanza vs AI ${codice} eliminata (disconnessione)`);
       return;
     }
 
@@ -953,7 +951,7 @@ io.on('connection', (socket) => {
         if (!partita.vsBot) {
           db.aggiornaStats(nome, { giocate: 1, perse: 1, punti: -1 });
           for (const g of partita.giocatori) {
-            if (g.nome !== nome && g.id !== BOT_ID) db.aggiornaStats(g.nome, { giocate: 1, vinte: 1, punti: 1 });
+            if (g.nome !== nome && g.id !== AI_ID) db.aggiornaStats(g.nome, { giocate: 1, vinte: 1, punti: 1 });
           }
         }
         const partitaTorneo = torneo.getPartitaDaCodice(codice);
